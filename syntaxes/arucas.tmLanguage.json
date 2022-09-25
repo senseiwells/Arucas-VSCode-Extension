@@ -1,0 +1,411 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Arucas",
+	"patterns": [
+		{
+			"include": "#code"
+		}
+	],
+	"repository": {
+		"code": {
+			"patterns": [
+				{
+					"include": "#comments"
+				},
+				{
+					"include": "#class-literal"
+				},
+        {
+          "include": "#function-literal"
+        },
+        {
+          "include": "#keyword-literal"
+        },
+        {
+          "include": "#literals"
+        },
+        {
+          "include": "#parens"
+        }
+			]
+		},
+    "comments": {
+      "patterns": [
+        {
+          "match": "//[^\r\n]*",
+          "name": "comment.line.double-slash.arucas"
+        },
+        {
+          "begin": "\\/\\*",
+          "end": "\\*\\/",
+          "name": "comment.block.arucas"
+        }
+      ]
+    },
+		"keyword-literal": {
+			"patterns": [
+				{
+					"match": "\\b(var|local)\\b",
+					"name": "storage.type.arucas"
+				},
+				{
+					"match": "\\b(try|catch|finally|throw)\\b",
+					"name": "keyword.control.catch-exception.arucas"
+				},
+				{
+					"match": "\\b(if|else|switch)\\b",
+					"name": "keyword.control.conditional.arucas"
+				},
+				{
+					"match": "\\b(while|for|foreach|return|break|continue|new)\\b",
+					"name": "keyword.control.arucas"
+				}
+			]
+		},
+		"types": {
+			"patterns": [
+				{
+					"match": "\\b(?:[a-zA-Z]\\w*)*\\b",
+					"name": "meta.class.arucas",
+					"patterns": [
+						{
+							"include": "#keyword-punctuation"
+						},
+						{
+							"include": "#types"
+						}
+					]
+				}
+			]
+		},
+		"keyword-punctuation": {
+			"patterns": [
+				{
+					"match": "(\\.)",
+					"name": "punctuation.accessor.dot.arucas"
+				},
+				{
+					"match": "(\\,)",
+					"name": "punctuation.accessor.comma.arucas"
+				},
+				{
+					"match": "(\\;)",
+					"name": "punctuation.accessor.semicolon.arucas"
+				}
+			]
+		},
+		"braces": {
+			"patterns": [
+				{
+					"begin": "{",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.section.group.begin.arucas"
+						}
+					},
+					"end": "(?=})",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.section.group.end.arucas"
+						}
+					},
+					"name": "meta.block.arucas",
+					"patterns": [
+						{
+							"include": "#code"
+						}
+					]
+				}
+			]
+		},
+		"class-literal": {
+			"begin": "(?=\\b(?:class|interface|enum)\\s+[a-zA-Z]\\w*\\s*(?:{|:))\\b",
+			"end": "}",
+			"name": "meta.class.arucas",
+			"patterns": [
+				{
+					"begin": "\\b(class|interface|enum)\\b\\s+([a-zA-Z]\\w*)",
+					"beginCaptures": {
+						"1": {
+							"name": "storage.modifier.arucas"
+						},
+						"2": {
+							"name": "entity.name.class.arucas"
+						}
+					},
+					"end": "(?={|:)"
+				},
+				{
+					"begin": "(:)\\s*([a-zA-Z]\\w*)\\s*",
+					"beginCaptures": {
+						"1": {
+							"name": "keyword.operator.declaration.arucas"
+						},
+						"2": {
+							"name": "entity.other.inherited-class.arucas"
+						}
+					},
+					"end": "(?={)",
+					"patterns": [
+						{
+							"match": ",\\s*([a-zA-Z]\\w*)",
+							"captures": {
+								"1": {
+									"name": "entity.other.inherited-class.arucas"
+								}
+							}
+						}
+					]
+				},
+				{
+					"begin": "{",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.group.begin.arucas"
+            }
+          },
+          "end": "(?=})",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.group.end.arucas"
+            }
+          },
+          "name": "meta.block.arucas",
+          "patterns": [
+            {
+              "match": "\\b(static)\\b",
+              "captures": {
+                "1": {
+                  "name": "storage.type.arucas"
+                }
+              }
+            },
+            {
+              "begin": "(var)\\s+([a-zA-Z]\\w*)(?::\\s*([a-zA-Z]\\w*))?",
+              "beginCaptures": {
+                "1": {
+                  "name": "storage.type.arucas"
+                },
+                "2": {
+                  "name": "entity.other.attribute-name"
+                },
+                "3": {
+                  "name": "entity.name.class"
+                }
+              },
+              "end": ";",
+              "patterns": [
+                {
+                  "include": "#code"
+                }
+              ]
+            },
+            {
+              "begin": "([a-zA-Z]\\w*)(?=\\()",
+              "beginCaptures": {
+                "1": {
+                  "name": "entity.name.class"
+                }
+              },
+              "end": ";|}",
+              "patterns": [
+                {
+                  "include": "#params"
+                },
+                {
+                  "begin": "(super|this)\\s*\\(",
+                  "beginCaptures": {
+                    "1": {
+                      "name": "keyword.other.arucas"
+                    }
+                  },
+                  "end": "\\)",
+                  "patterns": [
+                    {
+                      "include": "#code"
+                    }
+                  ]
+                },
+                {
+                  "include": "#braces"
+                }
+              ]
+            },
+            {
+              "begin": "\\b(operator)\\s*([\\+-\\\\*\\/&\\|~><\\^!]|&&|\\|\\||\\[\\]|!=|==|>=|<=|<<|>>)\\s*(?=\\()",
+              "beginCaptures": {
+                "1": {
+                  "name": "keyword.other.arucas"
+                },
+                "2": {
+                  "name": "keyword.other.unit"
+                }
+              },
+              "end": ";|}",
+              "patterns": [
+                {
+                  "include": "#params"
+                },
+                {
+                  "match": "\\s*:\\s*([a-zA-Z]\\w*)",
+                  "captures": {
+                    "1": {
+                      "name": "entity.name.class"
+                    }
+                  }
+                },
+                {
+                  "include": "#braces"
+                }
+              ]
+            },
+            {
+              "include": "#function-literal"
+            }
+          ]
+				}
+			]
+		},
+    "function-literal": {
+      "begin": "(?=\\b(?:fun)\\b)",
+      "end": ";|}",
+      "patterns": [
+        {
+          "match": "\\b(fun)\\s*([a-zA-Z]\\w*)?(?=\\()",
+          "captures": {
+            "1": {
+              "name": "keyword.other.arucas"
+            },
+            "2": {
+              "name": "entity.name.function.arucas"
+            }
+          }
+        },
+        {
+          "include": "#params"
+        },
+        {
+          "match": "\\s*:\\s*([a-zA-Z]\\w*)",
+          "captures": {
+            "1": {
+              "name": "entity.name.class"
+            }
+          }
+        },
+        {
+          "include": "#braces"
+        }
+      ]
+    },
+    "literals": {
+      "patterns": [
+        {
+          "match": "\\b(true|false|null)\\b",
+          "name": "constant.language.arucas"
+        },
+        {
+          "match": "\\b(this|super)\\b",
+          "name": "keyword.control"
+        },
+        {
+          "match": "0[xX][0-9a-fA-F]+",
+          "name": "constant.numeric.hex.arucas"
+        },
+        {
+          "match": "[0-9]+",
+          "name": "constant.numeric.integer.arucas"
+        },
+        {
+          "match": "[0-9]+\\.[0-9]+",
+          "name": "constant.numeric.arucas"
+        },
+        {
+          "begin": "\"",
+          "end": "\"",
+          "name": "string.quoted.double"
+        },
+        {
+          "begin": "'",
+          "end": "'",
+          "name": "string.quoted.single"
+        },
+        {
+          "begin": "{",
+          "end": "}",
+          "patterns": [
+            {
+              "match": ":",
+              "name": "support.other"
+            },
+            {
+              "match": ",",
+              "name": "support.other"
+            },
+            {
+              "include": "#code"
+            }
+          ]
+        },
+        {
+          "begin": "\\[",
+          "end": "\\]",
+          "patterns": [
+            {
+              "match": ",",
+              "name": "support.other"
+            },
+            {
+              "include": "#code"
+            }
+          ]
+        },
+        {
+          "match": "([a-zA-Z]\\w*)\\s*(?=\\()",
+          "captures": {
+            "1": {
+              "name": "entity.name.function"
+            }
+          }
+        }
+      ]
+    },
+    "params": {
+      "begin": "\\(\\s*(?:([a-zA-Z]\\w*)(?:\\s*:\\s*([a-zA-Z]\\w*))?)?",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name"
+        },
+        "2": {
+          "name": "entity.name.class"
+        }
+      },
+      "end": "\\)",
+      "patterns": [
+        {
+          "match": ",\\s*([a-zA-Z]\\w*)(?:\\s*:\\s*([a-zA-Z]\\w*))?",
+          "captures": {
+            "1": {
+              "name": "entity.name"
+            },
+            "2": {
+              "name": "entity.name.class"
+            }
+          }
+        },
+        {
+          "include": "#code"
+        }
+      ]
+    },
+    "parens": {
+      "begin": "\\(",
+      "end": "\\)",
+      "patterns": [
+        {
+          "include": "#code"
+        }
+      ]
+    }
+	},
+	"scopeName": "source.arucas"
+}

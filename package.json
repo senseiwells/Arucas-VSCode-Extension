@@ -1,0 +1,29 @@
+{
+  "name": "arucas",
+  "displayName": "Arucas Language Extension",
+  "description": "Syntax highlighting support for Arucas",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.71.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "arucas",
+      "aliases": ["Arucas", "arucas"],
+      "extensions": [".arucas"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "arucas",
+      "scopeName": "source.arucas",
+      "path": "./syntaxes/arucas.tmLanguage.json"
+    }],
+    "snippets": [{
+      "language": "arucas",
+      "path": "./snippets/arucas.json"
+    }]
+  }
+}
