@@ -1,29 +1,53 @@
 {
-  "name": "arucas",
-  "displayName": "Arucas Language Extension",
-  "description": "Syntax highlighting support for Arucas",
-  "version": "1.0.0",
-  "engines": {
-    "vscode": "^1.71.0"
-  },
-  "categories": [
-    "Programming Languages"
-  ],
-  "contributes": {
-    "languages": [{
-      "id": "arucas",
-      "aliases": ["Arucas", "arucas"],
-      "extensions": [".arucas"],
-      "configuration": "./language-configuration.json"
-    }],
-    "grammars": [{
-      "language": "arucas",
-      "scopeName": "source.arucas",
-      "path": "./syntaxes/arucas.tmLanguage.json"
-    }],
-    "snippets": [{
-      "language": "arucas",
-      "path": "./snippets/arucas.json"
-    }]
-  }
+	"name": "arucas",
+	"displayName": "Arucas Language Extension",
+	"description": "Syntax highlighting support for Arucas",
+	"version": "1.0.0",
+	"publisher": "Arucas",
+	"engines": {
+		"vscode": "^1.71.0"
+	},
+	"categories": [
+		"Programming Languages"
+	],
+	"author": {
+		"name": "senseiwells"
+	},
+	"repository": {
+		"url": "https://github.com/senseiwells/Arucas-VSCode-Extension"
+	},
+	"contributes": {
+		"languages": [
+			{
+				"id": "arucas",
+				"aliases": [
+					"Arucas",
+					"arucas"
+				],
+				"extensions": [
+					".arucas"
+				],
+				"configuration": "./language-configuration.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "arucas",
+				"scopeName": "source.arucas",
+				"path": "./syntaxes/arucas.tmLanguage.json"
+			}
+		],
+		"snippets": [
+			{
+				"language": "arucas",
+				"path": "./snippets/arucas.json"
+			}
+		]
+	},
+	"__metadata": {
+		"id": "b7d582e4-0efd-439d-a03d-b91e83692d5e",
+		"publisherDisplayName": "Arucas",
+		"publisherId": "a4c8206b-027a-4fad-af30-006b8edbc993",
+		"isPreReleaseVersion": false
+	}
 }
