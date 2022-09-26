@@ -76,7 +76,10 @@
 						},
 						{
 							"include": "#types"
-						}
+						},
+            {
+              "include": "#comments"
+            }
 					]
 				}
 			]
@@ -94,7 +97,10 @@
 				{
 					"match": "(\\;)",
 					"name": "punctuation.accessor.semicolon.arucas"
-				}
+				},
+        {
+          "include": "#comments"
+        }
 			]
 		},
 		"braces": {
@@ -145,11 +151,14 @@
         {
           "match": "[a-zA-Z]\\w*",
           "name": "support.class"
+        },
+        {
+          "include": "#comments"
         }
       ]
     },
 		"class-literal": {
-			"begin": "(?=\\b(?:class|interface|enum)\\s+[a-zA-Z]\\w*\\s*(?:{|:))\\b",
+			"begin": "(?=\\b(?:class|interface|enum)\\s+[a-zA-Z]\\w*)\\b",
 			"end": "}",
 			"name": "meta.class.arucas",
 			"patterns": [
@@ -163,7 +172,12 @@
 							"name": "entity.name.class.arucas"
 						}
 					},
-					"end": "(?={|:)"
+					"end": "(?={|:)",
+          "patterns": [
+            {
+              "include": "#comments"
+            }
+          ] 
 				},
 				{
 					"begin": "(:)\\s*([a-zA-Z]\\w*)\\s*",
@@ -184,7 +198,10 @@
 									"name": "entity.other.inherited-class.arucas"
 								}
 							}
-						}
+						},
+            {
+              "include": "#comments"
+            }
 					]
 				},
 				{
@@ -327,6 +344,9 @@
         },
         {
           "include": "#braces"
+        },
+        {
+          "include": "#comments"
         }
       ]
     },
