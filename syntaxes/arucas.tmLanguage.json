@@ -12,6 +12,9 @@
 				{
 					"include": "#comments"
 				},
+        {
+          "include": "#import-literal"
+        },
 				{
 					"include": "#class-literal"
 				},
@@ -118,6 +121,33 @@
 				}
 			]
 		},
+    "import-literal": {
+      "begin": "\\b(import)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.modifier.import.arucas"
+        }
+      },
+      "end": "\\b(from)\\s*([\\w\\.]+)",
+      "endCaptures": {
+        "1": {
+          "name": "storage.modifier.import.arucas"
+        },
+        "2": {
+          "name": "support.function"
+        }
+      },
+      "patterns": [
+        {
+          "match": "\\*",
+          "name": "support.class"
+        },
+        {
+          "match": "[a-zA-Z]\\w*",
+          "name": "support.class"
+        }
+      ]
+    },
 		"class-literal": {
 			"begin": "(?=\\b(?:class|interface|enum)\\s+[a-zA-Z]\\w*\\s*(?:{|:))\\b",
 			"end": "}",
@@ -261,6 +291,9 @@
             },
             {
               "include": "#function-literal"
+            },
+            {
+              "include": "#comments"
             }
           ]
 				}
