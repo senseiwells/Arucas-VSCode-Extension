@@ -228,6 +228,22 @@
               }
             },
             {
+              "match": "\\b(readonly)\\b",
+              "captures": {
+                "1": {
+                  "name": "storage.type.arucas"
+                }
+              }
+            },
+            {
+              "match": "\\b(private)\\b",
+              "captures": {
+                "1": {
+                  "name": "storage.type.arucas"
+                }
+              }
+            },
+            {
               "begin": "(var)\\s+([a-zA-Z]\\w*)(?::\\s*([a-zA-Z]\\w*))?",
               "beginCaptures": {
                 "1": {
