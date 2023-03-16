@@ -1,54 +1,64 @@
 {
-	"name": "arucas",
-	"displayName": "Arucas Language Extension",
-	"description": "Syntax highlighting support for Arucas",
-	"version": "1.0.7",
+  "name": "arucas",
+  "displayName": "Arucas Language Extension",
+  "description": "Language Support for Arucas",
+  "version": "2.0.7",
 	"publisher": "Arucas",
-  "icon": "assets/icon.png",
-	"engines": {
-		"vscode": "^1.71.0"
-	},
-	"categories": [
+  "engines": {
+    "vscode": "^1.76.0"
+  },
+  "categories": [
 		"Programming Languages"
-	],
-	"author": {
-		"name": "senseiwells"
-	},
-	"repository": {
-		"url": "https://github.com/senseiwells/Arucas-VSCode-Extension"
-	},
-	"contributes": {
-		"languages": [
-			{
-				"id": "arucas",
-				"aliases": [
-					"Arucas",
-					"arucas"
-				],
-				"extensions": [
-					".arucas"
-				],
-				"configuration": "./language-configuration.json"
-			}
-		],
-		"grammars": [
-			{
-				"language": "arucas",
-				"scopeName": "source.arucas",
-				"path": "./syntaxes/arucas.tmLanguage.json"
-			}
-		],
-		"snippets": [
-			{
-				"language": "arucas",
-				"path": "./snippets/arucas.json"
-			}
-		]
-	},
-	"__metadata": {
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "arucas",
+        "aliases": [
+          "Arucas",
+          "arucas"
+        ],
+        "extensions": [
+          ".arucas"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "arucas",
+        "scopeName": "source.arucas",
+        "path": "./syntaxes/arucas.tmLanguage.json"
+      }
+    ]
+  },
+  "__metadata": {
 		"id": "b7d582e4-0efd-439d-a03d-b91e83692d5e",
 		"publisherDisplayName": "Arucas",
 		"publisherId": "a4c8206b-027a-4fad-af30-006b8edbc993",
 		"isPreReleaseVersion": false
-	}
+	},
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.76.0",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.53.0",
+    "@typescript-eslint/parser": "^5.53.0",
+    "eslint": "^8.34.0",
+    "glob": "^8.1.0",
+    "mocha": "^10.2.0",
+    "typescript": "^4.9.5",
+    "@vscode/test-electron": "^2.2.3"
+  }
 }
