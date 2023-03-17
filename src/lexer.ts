@@ -127,7 +127,14 @@ export class Trace {
     readonly offset: number;
     readonly length: number;
 
-    constructor(lineStart: number, columnStart: number, lineEnd: number, columnEnd: number, offset: number, length: number) {
+    constructor(
+        lineStart: number,
+        columnStart: number,
+        lineEnd: number,
+        columnEnd: number,
+        offset: number,
+        length: number
+    ) {
         this.lineStart = lineStart;
         this.columnStart = columnStart;
         this.lineEnd = lineEnd;
@@ -202,7 +209,10 @@ class LexerContext {
         return this;
     }
 
-    addRuleWithConsumer(type: TokenType, consumer: (rule: LexerRule) => void): LexerContext {
+    addRuleWithConsumer(
+        type: TokenType,
+        consumer: (rule: LexerRule) => void
+    ): LexerContext {
         const rule = new LexerRule(type);
         consumer(rule);
         this.rules.push(rule);
@@ -220,7 +230,10 @@ class LexerContext {
             }
         });
         if (selectedRule) {
-            return new LexerToken(selectedRule.type, input.substring(0, longestRule));
+            return new LexerToken(
+                selectedRule.type,
+                input.substring(0, longestRule)
+            );
         }
         return null;
     }
@@ -228,8 +241,12 @@ class LexerContext {
 
 export class Lexer {
     static CONTEXT = new LexerContext()
-        .addRuleWithConsumer(TokenType.Whitespace, (rule) => rule.addRegex("[ \t\r\n]"))
-        .addRuleWithConsumer(TokenType.Comment, (rule) => rule.addMultiline("/*", "*/").addRegex("//[^\\r\\n]*"))
+        .addRuleWithConsumer(TokenType.Whitespace, (rule) =>
+            rule.addRegex("[ \t\r\n]")
+        )
+        .addRuleWithConsumer(TokenType.Comment, (rule) =>
+            rule.addMultiline("/*", "*/").addRegex("//[^\\r\\n]*")
+        )
 
         // Arithmetics
         .addRule(TokenType.Plus)
@@ -239,9 +256,17 @@ export class Lexer {
         .addRule(TokenType.Power)
 
         // Atoms
-        .addRuleWithConsumer(TokenType.Identifier, (rule) => rule.addRegex("[a-zA-Z_][a-zA-Z0-9_]*")) 
-        .addRuleWithConsumer(TokenType.String, (rule) => rule.addMultilineEscape("\"", "\\", "\"").addMultilineEscape("\"", "\\", "\"")) 
-        .addRuleWithConsumer(TokenType.Number, (rule) => rule.addRegexes("[0-9]+\\.[0-9]+", "[0-9]+", "0[xX][0-9a-fA-F]+")) 
+        .addRuleWithConsumer(TokenType.Identifier, (rule) =>
+            rule.addRegex("[a-zA-Z_][a-zA-Z0-9_]*")
+        )
+        .addRuleWithConsumer(TokenType.String, (rule) =>
+            rule
+                .addMultilineEscape('"', "\\", '"')
+                .addMultilineEscape('"', "\\", '"')
+        )
+        .addRuleWithConsumer(TokenType.Number, (rule) =>
+            rule.addRegexes("[0-9]+\\.[0-9]+", "[0-9]+", "0[xX][0-9a-fA-F]+")
+        )
         .addRule(TokenType.True)
         .addRule(TokenType.False)
         .addRule(TokenType.Null)
@@ -347,7 +372,10 @@ export class Lexer {
                 if (tkLength === -1 || tkLength === 0) {
                     break;
                 }
-                token = new LexerToken(TokenType.Unknown, input.substring(0, tkLength));
+                token = new LexerToken(
+                    TokenType.Unknown,
+                    input.substring(0, tkLength)
+                );
             }
 
             if (token.length + offset > length) {
@@ -364,14 +392,36 @@ export class Lexer {
                     column++;
                 }
             }
-            if (token.type !== TokenType.Whitespace && token.type !== TokenType.Comment) {
-                tokens.push(new Token(token.type, new Trace(oldLine, oldColumn, line, column, offset, token.length), token.content));
+            if (
+                token.type !== TokenType.Whitespace &&
+                token.type !== TokenType.Comment
+            ) {
+                tokens.push(
+                    new Token(
+                        token.type,
+                        new Trace(
+                            oldLine,
+                            oldColumn,
+                            line,
+                            column,
+                            offset,
+                            token.length
+                        ),
+                        token.content
+                    )
+                );
             }
 
             input = input.substring(token.length);
             offset += token.length;
         }
-        tokens.push(new Token(TokenType.Eof, new Trace(line, column, line, column + 1, offset, 1), ""));
+        tokens.push(
+            new Token(
+                TokenType.Eof,
+                new Trace(line, column, line, column + 1, offset, 1),
+                ""
+            )
+        );
 
         return tokens;
     }
@@ -384,45 +434,45 @@ function regexEscape(str: string): string {
     while (i < len) {
         const c = str[i];
         switch (c) {
-            case '\u0000': {
+            case "\u0000": {
                 sb += "\\0";
                 i++;
                 continue;
             }
-            case '\n': {
+            case "\n": {
                 sb += "\\n";
                 i++;
                 continue;
             }
-            case '\r': {
+            case "\r": {
                 sb += "\\r";
                 i++;
                 continue;
             }
-            case '\t': {
+            case "\t": {
                 sb += "\\t";
                 i++;
                 continue;
             }
-            case '\\': {
+            case "\\": {
                 sb += "\\\\";
                 i++;
                 continue;
             }
-            case '^': 
-            case '$': 
-            case '?': 
-            case '|': 
-            case '*': 
-            case '/': 
-            case '+': 
-            case '.': 
-            case '(': 
-            case ')': 
-            case '[': 
-            case ']': 
-            case '{': 
-            case '}': {
+            case "^":
+            case "$":
+            case "?":
+            case "|":
+            case "*":
+            case "/":
+            case "+":
+            case ".":
+            case "(":
+            case ")":
+            case "[":
+            case "]":
+            case "{":
+            case "}": {
                 sb += "\\" + c;
                 i++;
                 continue;

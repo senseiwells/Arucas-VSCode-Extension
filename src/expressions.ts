@@ -1,38 +1,42 @@
 import { TokenType } from "./lexer";
 import { Id, Node, Parameter, Type } from "./node";
-import { SemanticToken, SemanticTokenModifier, SemanticTokenType } from "./parser";
+import {
+    SemanticToken,
+    SemanticTokenModifier,
+    SemanticTokenType,
+} from "./parser";
 import { Statement } from "./statements";
 
 export interface ExpressionVisitor<T> {
-    visitAccess(access: Access): T
-    visitAssign(assign: Assign): T
-    visitBinary(binary: Binary): T
-    visitBracketAccess(bracket: BracketAccess): T
-    visitBracketAssign(bracket: BracketAssign): T
-    visitBracket(bracket: Bracket): T
-    visitCall(call: Call): T
-    visitFunctionAccess(func: FunctionAccess): T
-    visitFunctionExpr(func: FunctionExpr): T
-    visitList(list: List): T
-    visitLiteral(literal: Literal<any>): T
-    visitMap(map: MapExpr): T
-    visitMemberAccess(member: MemberAccess): T
-    visitMemberAssign(member: MemberAssign): T
-    visitMemberCall(member: MemberCall): T
-    visitNewAcess(acess: NewAccess): T
-    visitNewCall(call: NewCall): T
-    visitSuper(zuper: Super): T
-    visitThis(thiz: This): T
-    visitUnary(unary: Unary): T
-    visitUnpack(unpack: UnpackAssign): T
+    visitAccess(access: Access): T;
+    visitAssign(assign: Assign): T;
+    visitBinary(binary: Binary): T;
+    visitBracketAccess(bracket: BracketAccess): T;
+    visitBracketAssign(bracket: BracketAssign): T;
+    visitBracket(bracket: Bracket): T;
+    visitCall(call: Call): T;
+    visitFunctionAccess(func: FunctionAccess): T;
+    visitFunctionExpr(func: FunctionExpr): T;
+    visitList(list: List): T;
+    visitLiteral(literal: Literal<any>): T;
+    visitMap(map: MapExpr): T;
+    visitMemberAccess(member: MemberAccess): T;
+    visitMemberAssign(member: MemberAssign): T;
+    visitMemberCall(member: MemberCall): T;
+    visitNewAcess(acess: NewAccess): T;
+    visitNewCall(call: NewCall): T;
+    visitSuper(zuper: Super): T;
+    visitThis(thiz: This): T;
+    visitUnary(unary: Unary): T;
+    visitUnpack(unpack: UnpackAssign): T;
 }
 
 export interface ToAssignable {
-    toAssignable(assignee: Expression): Assignable
+    toAssignable(assignee: Expression): Assignable;
 }
 
 export interface ToCallable {
-    toCallable(args: Expression[]): Expression
+    toCallable(args: Expression[]): Expression;
 }
 
 export abstract class Expression extends Node {
@@ -59,17 +63,25 @@ export class Access extends Expression implements ToAssignable, ToCallable {
         super(token);
         this.name = name;
     }
-    
+
     visit<T>(visitor: ExpressionVisitor<T>): T {
         return visitor.visitAccess(this);
     }
 
     toAssignable(assignee: Expression): Assignable {
-        return new Assign(this.name, assignee, { token: this.token.token, type: SemanticTokenType.Variable, modifiers: [SemanticTokenModifier.Modification] });
+        return new Assign(this.name, assignee, {
+            token: this.token.token,
+            type: SemanticTokenType.Variable,
+            modifiers: [SemanticTokenModifier.Modification],
+        });
     }
 
     toCallable(args: Expression[]): Expression {
-        return new Call(new FunctionAccess(this.name, args.length, this.token), args, this.token);
+        return new Call(
+            new FunctionAccess(this.name, args.length, this.token),
+            args,
+            this.token
+        );
     }
 }
 
@@ -111,7 +123,11 @@ export class BracketAccess extends Expression implements ToAssignable {
     readonly expression: Expression;
     readonly index: Expression;
 
-    constructor(expression: Expression, index: Expression, token: SemanticToken) {
+    constructor(
+        expression: Expression,
+        index: Expression,
+        token: SemanticToken
+    ) {
         super(token);
         this.expression = expression;
         this.index = index;
@@ -120,9 +136,14 @@ export class BracketAccess extends Expression implements ToAssignable {
     visit<T>(visitor: ExpressionVisitor<T>): T {
         return visitor.visitBracketAccess(this);
     }
-    
+
     toAssignable(assignee: Expression): Assignable {
-        return new BracketAssign(this.expression, this.index, assignee, this.token);
+        return new BracketAssign(
+            this.expression,
+            this.index,
+            assignee,
+            this.token
+        );
     }
 
     children(): Node[] {
@@ -134,7 +155,12 @@ export class BracketAssign extends Assignable {
     readonly expression: Expression;
     readonly index: Expression;
 
-    constructor(expression: Expression, index: Expression, assignee: Expression, token: SemanticToken) {
+    constructor(
+        expression: Expression,
+        index: Expression,
+        assignee: Expression,
+        token: SemanticToken
+    ) {
         super(assignee, token);
         this.expression = expression;
         this.index = index;
@@ -170,7 +196,11 @@ export class Call extends Expression {
     readonly expression: Expression;
     readonly args: Expression[];
 
-    constructor(expression: Expression, args: Expression[], token: SemanticToken) {
+    constructor(
+        expression: Expression,
+        args: Expression[],
+        token: SemanticToken
+    ) {
         super(token);
         this.expression = expression;
         this.args = args;
@@ -193,7 +223,7 @@ export class FunctionAccess extends Expression {
         super(token);
         this.name = name;
         this.parameters = parameters;
-    } 
+    }
 
     visit<T>(visitor: ExpressionVisitor<T>): T {
         return visitor.visitFunctionAccess(this);
@@ -206,7 +236,13 @@ export class FunctionExpr extends Expression {
     readonly returns: Type[];
     readonly body: Statement;
 
-    constructor(parameters: Parameter[], arbitrary: boolean, returns: Type[], body: Statement, token: SemanticToken) {
+    constructor(
+        parameters: Parameter[],
+        arbitrary: boolean,
+        returns: Type[],
+        body: Statement,
+        token: SemanticToken
+    ) {
         super(token);
         this.parameters = parameters;
         this.arbitrary = arbitrary;
@@ -240,7 +276,9 @@ export class List extends Expression {
     }
 }
 
-export class Literal<T extends string | number | boolean | null> extends Expression {
+export class Literal<
+    T extends string | number | boolean | null
+> extends Expression {
     readonly literal: T;
 
     constructor(literal: T, token: SemanticToken) {
@@ -256,7 +294,10 @@ export class Literal<T extends string | number | boolean | null> extends Express
 export class MapExpr extends Expression {
     readonly expressions: Map<Expression, Expression>;
 
-    constructor(expressions: Map<Expression, Expression>, token: SemanticToken) {
+    constructor(
+        expressions: Map<Expression, Expression>,
+        token: SemanticToken
+    ) {
         super(token);
         this.expressions = expressions;
     }
@@ -270,7 +311,10 @@ export class MapExpr extends Expression {
     }
 }
 
-export class MemberAccess extends Expression implements ToAssignable, ToCallable {
+export class MemberAccess
+    extends Expression
+    implements ToAssignable, ToCallable
+{
     readonly expression: Expression;
     readonly name: string;
 
@@ -285,11 +329,18 @@ export class MemberAccess extends Expression implements ToAssignable, ToCallable
     }
 
     toAssignable(assignee: Expression): Assignable {
-        return new MemberAssign(this.expression, this.name, assignee, { token: this.token.token, type: SemanticTokenType.Property, modifiers: [SemanticTokenModifier.Modification] });
+        return new MemberAssign(this.expression, this.name, assignee, {
+            token: this.token.token,
+            type: SemanticTokenType.Property,
+            modifiers: [SemanticTokenModifier.Modification],
+        });
     }
 
     toCallable(args: Expression[]): Expression {
-        return new MemberCall(this.expression, this.name, args, { token: this.token.token, type: SemanticTokenType.Method });
+        return new MemberCall(this.expression, this.name, args, {
+            token: this.token.token,
+            type: SemanticTokenType.Method,
+        });
     }
 
     children(): Node[] {
@@ -300,8 +351,13 @@ export class MemberAccess extends Expression implements ToAssignable, ToCallable
 export class MemberAssign extends Assignable {
     readonly expression: Expression;
     readonly name: string;
-    
-    constructor(expression: Expression, name: string, assignee: Expression, token: SemanticToken) {
+
+    constructor(
+        expression: Expression,
+        name: string,
+        assignee: Expression,
+        token: SemanticToken
+    ) {
         super(assignee, token);
         this.expression = expression;
         this.name = name;
@@ -321,7 +377,12 @@ export class MemberCall extends Expression {
     readonly name: string;
     readonly args: Expression[];
 
-    constructor(expression: Expression, name: string, args: Expression[], token: SemanticToken) {
+    constructor(
+        expression: Expression,
+        name: string,
+        args: Expression[],
+        token: SemanticToken
+    ) {
         super(token);
         this.expression = expression;
         this.name = name;
@@ -361,7 +422,7 @@ export class NewAccess extends Expression implements ToCallable {
 export class NewCall extends Expression {
     readonly name: Id;
     readonly args: Expression[];
-    
+
     constructor(name: Id, args: Expression[], token: SemanticToken) {
         super(token);
         this.name = name;
@@ -406,13 +467,17 @@ export class Unary extends Expression {
     children(): Node[] {
         return [this.expression];
     }
-} 
+}
 
 export class UnpackAssign extends Expression {
     readonly assignables: Assignable[];
     readonly assignee: Expression;
 
-    constructor(assignables: Assignable[], assignee: Expression, token: SemanticToken) {
+    constructor(
+        assignables: Assignable[],
+        assignee: Expression,
+        token: SemanticToken
+    ) {
         super(token);
         this.assignables = assignables;
         this.assignee = assignee;

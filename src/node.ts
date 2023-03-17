@@ -49,9 +49,7 @@ export class Parameter extends Node {
 
 export type PossibleModifier = SemanticToken | null;
 
-export class Modifier extends Node {
-
-}
+export class Modifier extends Node {}
 
 export class Variable extends Node {
     readonly name: Id;
@@ -60,7 +58,14 @@ export class Variable extends Node {
     readonly expression: Expression;
     readonly types: Type[];
 
-    constructor(name: Id, readonly: PossibleModifier, isPrivate: PossibleModifier, expression: Expression, types: Type[], token: SemanticToken) {
+    constructor(
+        name: Id,
+        readonly: PossibleModifier,
+        isPrivate: PossibleModifier,
+        expression: Expression,
+        types: Type[],
+        token: SemanticToken
+    ) {
         super(token);
         this.name = name;
         this.readonly = readonly;
@@ -168,7 +173,12 @@ export class InterfaceMethod extends Node {
     readonly parameters: Parameter[];
     readonly returns: Type[];
 
-    constructor(name: Id, parameters: Parameter[], returns: Type[], token: SemanticToken) {
+    constructor(
+        name: Id,
+        parameters: Parameter[],
+        returns: Type[],
+        token: SemanticToken
+    ) {
         super(token);
         this.name = name;
         this.parameters = parameters;
