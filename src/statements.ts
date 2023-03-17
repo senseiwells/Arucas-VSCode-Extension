@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-types */
 import { Expression } from "./expressions";
 import {
     Catch,
