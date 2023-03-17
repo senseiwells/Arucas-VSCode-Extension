@@ -822,7 +822,7 @@ export class Parser extends TokenReader {
                 "Expected ')' after catch parameter"
             );
             const catchBody = this.statement();
-            catc = new Catch(body, parameter, {
+            catc = new Catch(catchBody, parameter, {
                 token: current,
                 type: SemanticTokenType.Keyword,
             });
