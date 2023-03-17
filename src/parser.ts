@@ -1,14 +1,74 @@
+/* eslint-disable @typescript-eslint/ban-types */
+/* eslint-disable no-constant-condition */
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { Access, Assignable, Binary, Bracket, BracketAccess, Call, Expression, FunctionExpr, List, Literal, MapExpr, MemberAccess, NewAccess, Super, This, ToAssignable, ToCallable, Unary, UnpackAssign, VoidExpr } from "./expressions";
+import {
+    Access,
+    Assignable,
+    Binary,
+    Bracket,
+    BracketAccess,
+    Call,
+    Expression,
+    FunctionExpr,
+    List,
+    Literal,
+    MapExpr,
+    MemberAccess,
+    NewAccess,
+    Super,
+    This,
+    ToAssignable,
+    ToCallable,
+    Unary,
+    UnpackAssign,
+    VoidExpr,
+} from "./expressions";
 import { Token, TokenType, Trace } from "./lexer";
-import { Catch, Else, EnumMember, Finally, From, Id, InterfaceMethod, Parameter, PossibleModifier, Problem, Type, Variable } from "./node";
-import { Break, Class, ClassBody, Constructor, Continue, Enum, ExpressionStmt, For, Foreach, Function, If, Import, Interface, LocalVar, Return, Scope, Statement, Statements, Switch, Throw, Try, Void, While } from "./statements";
+import {
+    Catch,
+    Else,
+    EnumMember,
+    Finally,
+    From,
+    Id,
+    InterfaceMethod,
+    Parameter,
+    PossibleModifier,
+    Problem,
+    Type,
+    Variable,
+} from "./node";
+import {
+    Break,
+    Class,
+    ClassBody,
+    Constructor,
+    Continue,
+    Enum,
+    ExpressionStmt,
+    For,
+    Foreach,
+    Function,
+    If,
+    Import,
+    Interface,
+    LocalVar,
+    Return,
+    Scope,
+    Statement,
+    Statements,
+    Switch,
+    Throw,
+    Try,
+    Void,
+    While,
+} from "./statements";
 
 export interface SemanticToken {
-    token: Token,
-	type?: SemanticTokenType;
-	modifiers?: SemanticTokenModifier[];
+    token: Token;
+    type?: SemanticTokenType;
+    modifiers?: SemanticTokenModifier[];
 }
 
 export enum SemanticTokenType {
@@ -25,7 +85,7 @@ export enum SemanticTokenType {
     Keyword = "keyword",
     Number = "number",
     Operator = "operator",
-    Storage = "storage"
+    Storage = "storage",
 }
 
 export enum SemanticTokenModifier {
@@ -33,42 +93,34 @@ export enum SemanticTokenModifier {
     Private = "private",
     Readonly = "readonly",
     Static = "static",
-    Modification = "modification"
+    Modification = "modification",
 }
 
 class ParseError extends Error {
-    readonly start: SemanticToken;
-    readonly message: string;
-
-    constructor(start: SemanticToken, message: string) {
+    constructor(readonly start: SemanticToken, readonly message: string) {
         super(message);
-        this.start = start;
-        this.message = message;
     }
 }
 
 class TokenReader {
-    private readonly tokens: Token[];
     private index = 0;
 
-    constructor(tokens: Token[]) {
-        this.tokens = tokens;
-    }
+    constructor(private readonly tokens: Token[]) {}
 
-    advance(amount: number = 1) {
+    advance(amount = 1) {
         this.index = this.getOffset(amount);
         return this.tokens[this.index];
     }
 
-    receded(amount: number = 1) {
+    receded(amount = 1) {
         return this.advance(-amount);
     }
 
-    peek(amount: number = 0) {
+    peek(amount = 0) {
         return this.tokens[this.getOffset(amount)];
     }
 
-    peekType(amount: number = 0) {
+    peekType(amount = 0) {
         return this.peek(amount).type;
     }
 
@@ -122,7 +174,6 @@ export class Parser extends TokenReader {
         const statments: Statement[] = [];
         while (!this.isAtEnd()) {
             statments.push(this.declaration());
-
         }
         return new Statements(statments, { token: first });
     }
@@ -134,15 +185,15 @@ export class Parser extends TokenReader {
     declaration(): Statement {
         try {
             switch (this.peekType()) {
-                case TokenType.Local: 
+                case TokenType.Local:
                     return this.localDeclaration();
-                case TokenType.Fun: 
+                case TokenType.Fun:
                     return this.functionDeclaration(false);
                 case TokenType.Class:
                     return this.classDeclaration();
                 case TokenType.Enum:
                     return this.enumDeclaration();
-                case TokenType.Interface: 
+                case TokenType.Interface:
                     return this.interfaceDeclaration();
                 default:
                     return this.statement();
@@ -155,43 +206,94 @@ export class Parser extends TokenReader {
                 throw e;
             }
         }
-        
     }
 
     localDeclaration(): Statement {
-        const local = this.checkAsSemantic(TokenType.Local, SemanticTokenType.Storage);
-        const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Variable, [SemanticTokenModifier.Declaration], "Expected variable name");
+        const local = this.checkAsSemantic(
+            TokenType.Local,
+            SemanticTokenType.Storage
+        );
+        const id = this.checkAsSemantic(
+            TokenType.Identifier,
+            SemanticTokenType.Variable,
+            [SemanticTokenModifier.Declaration],
+            "Expected variable name"
+        );
         const types = this.typeHint();
-        this.check(TokenType.AssignOperator, "Expected '=' after variable name");
+        this.check(
+            TokenType.AssignOperator,
+            "Expected '=' after variable name"
+        );
         const expr = this.expression();
-        this.check(TokenType.Semicolon, "Expected ';' after local variable declaration");
+        this.check(
+            TokenType.Semicolon,
+            "Expected ';' after local variable declaration"
+        );
         return new LocalVar(new Id(id.token.content, id), expr, types, local);
     }
 
     classDeclaration(): Statement {
-        const clazz = this.checkAsSemantic(TokenType.Class, SemanticTokenType.Storage);
-        const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Class, [SemanticTokenModifier.Declaration], "Expected class name");
+        const clazz = this.checkAsSemantic(
+            TokenType.Class,
+            SemanticTokenType.Storage
+        );
+        const id = this.checkAsSemantic(
+            TokenType.Identifier,
+            SemanticTokenType.Class,
+            [SemanticTokenModifier.Declaration],
+            "Expected class name"
+        );
         const superclasses: Type[] = [];
         if (this.isMatch(TokenType.Colon)) {
             do {
-                const superclass = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Class, undefined, "Expected super class name");
-                superclasses.push(new Type(superclass.token.content, superclass));
+                const superclass = this.checkAsSemantic(
+                    TokenType.Identifier,
+                    SemanticTokenType.Class,
+                    undefined,
+                    "Expected super class name"
+                );
+                superclasses.push(
+                    new Type(superclass.token.content, superclass)
+                );
             } while (this.isMatch(TokenType.Comma));
         }
         const type = superclasses.length ? "super class" : "class";
-        this.check(TokenType.LeftCurlyBracket, `Expected '{' after ${type} name`);
+        this.check(
+            TokenType.LeftCurlyBracket,
+            `Expected '{' after ${type} name`
+        );
         const body = this.classBody();
-        return new Class(new Id(id.token.content, id), superclasses, body, clazz);
+        return new Class(
+            new Id(id.token.content, id),
+            superclasses,
+            body,
+            clazz
+        );
     }
 
     enumDeclaration(): Statement {
-        const enumeration = this.checkAsSemantic(TokenType.Enum, SemanticTokenType.Storage);
-        const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Enum, [SemanticTokenModifier.Declaration], "Expected enum name");
+        const enumeration = this.checkAsSemantic(
+            TokenType.Enum,
+            SemanticTokenType.Storage
+        );
+        const id = this.checkAsSemantic(
+            TokenType.Identifier,
+            SemanticTokenType.Enum,
+            [SemanticTokenModifier.Declaration],
+            "Expected enum name"
+        );
         const superclasses: Type[] = [];
         if (this.isMatch(TokenType.Colon)) {
             do {
-                const superclass = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Class, undefined, "Expected super class name");
-                superclasses.push(new Type(superclass.token.content, superclass));
+                const superclass = this.checkAsSemantic(
+                    TokenType.Identifier,
+                    SemanticTokenType.Class,
+                    undefined,
+                    "Expected super class name"
+                );
+                superclasses.push(
+                    new Type(superclass.token.content, superclass)
+                );
             } while (this.isMatch(TokenType.Comma));
         }
         this.check(TokenType.LeftCurlyBracket, "Expected '{' after enum name");
@@ -200,9 +302,19 @@ export class Parser extends TokenReader {
             if (this.peekType() !== TokenType.Identifier) {
                 break;
             }
-            const member = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.EnumMember, [SemanticTokenModifier.Declaration, SemanticTokenModifier.Readonly]);
+            const member = this.checkAsSemantic(
+                TokenType.Identifier,
+                SemanticTokenType.EnumMember,
+                [
+                    SemanticTokenModifier.Declaration,
+                    SemanticTokenModifier.Readonly,
+                ]
+            );
             if (enums.find((v) => v.name === member.token.content)) {
-                this.error(`Enum cannot have a duplicate constant: '${member.token.content}'`, member.token);
+                this.error(
+                    `Enum cannot have a duplicate constant: '${member.token.content}'`,
+                    member.token
+                );
             }
             if (member.token.content === "type") {
                 this.error("Enum cannot define constant 'type'", member.token);
@@ -210,31 +322,70 @@ export class Parser extends TokenReader {
 
             let args: Expression[] = [];
             if (this.isMatch(TokenType.LeftBracket)) {
-                args = this.peekType() === TokenType.RightBracket ? this.expressions() : [];
-                this.check(TokenType.RightBracket, "Expected ')' after enum arguments");
+                args =
+                    this.peekType() === TokenType.RightBracket
+                        ? this.expressions()
+                        : [];
+                this.check(
+                    TokenType.RightBracket,
+                    "Expected ')' after enum arguments"
+                );
             }
             enums.push(new EnumMember(member.token.content, args, member));
             this.isMatch(TokenType.Comma);
         }
         let body: Statement;
         if (!this.isMatch(TokenType.Semicolon)) {
-            this.check(TokenType.RightCurlyBracket, "Expected '}' or ';' after enums");
-            body = new Void({token: this.peek(-1) });
+            this.check(
+                TokenType.RightCurlyBracket,
+                "Expected '}' or ';' after enums"
+            );
+            body = new Void({ token: this.peek(-1) });
         } else {
             body = this.classBody();
         }
-        return new Enum(new Id(id.token.content, id), superclasses, enums, body, enumeration);
+        return new Enum(
+            new Id(id.token.content, id),
+            superclasses,
+            enums,
+            body,
+            enumeration
+        );
     }
 
     interfaceDeclaration(): Statement {
-        const inter = this.checkAsSemantic(TokenType.Interface, SemanticTokenType.Storage);
-        const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Interface, [SemanticTokenModifier.Declaration], "Expected interface name");
-        this.check(TokenType.LeftCurlyBracket, "Expected '{' after interface name");
+        const inter = this.checkAsSemantic(
+            TokenType.Interface,
+            SemanticTokenType.Storage
+        );
+        const id = this.checkAsSemantic(
+            TokenType.Identifier,
+            SemanticTokenType.Interface,
+            [SemanticTokenModifier.Declaration],
+            "Expected interface name"
+        );
+        this.check(
+            TokenType.LeftCurlyBracket,
+            "Expected '{' after interface name"
+        );
         const functions: InterfaceMethod[] = [];
         while (!this.isMatch(TokenType.RightCurlyBracket)) {
-            const fun = this.checkAsSemantic(TokenType.Fun, SemanticTokenType.Storage, undefined, "Expected function blueprint in interface");
-            const funId = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Method, [SemanticTokenModifier.Declaration], "Expected function blueprint in interface");
-            this.check(TokenType.LeftBracket, "Expected '(' after function name");
+            const fun = this.checkAsSemantic(
+                TokenType.Fun,
+                SemanticTokenType.Storage,
+                undefined,
+                "Expected function blueprint in interface"
+            );
+            const funId = this.checkAsSemantic(
+                TokenType.Identifier,
+                SemanticTokenType.Method,
+                [SemanticTokenModifier.Declaration],
+                "Expected function blueprint in interface"
+            );
+            this.check(
+                TokenType.LeftBracket,
+                "Expected '(' after function name"
+            );
             let parameters: Parameter[];
             if (!this.isMatch(TokenType.RightBracket)) {
                 parameters = this.functionParameters()[0];
@@ -242,7 +393,14 @@ export class Parser extends TokenReader {
                 parameters = [];
             }
             const hints = this.typeHint();
-            functions.push(new InterfaceMethod(new Id(funId.token.content, funId), parameters, hints, fun));
+            functions.push(
+                new InterfaceMethod(
+                    new Id(funId.token.content, funId),
+                    parameters,
+                    hints,
+                    fun
+                )
+            );
         }
         return new Interface(new Id(id.token.content, id), functions, inter);
     }
@@ -260,24 +418,38 @@ export class Parser extends TokenReader {
             let isPrivate: PossibleModifier = null;
             let isStatic: PossibleModifier = null;
             let readonly: PossibleModifier = null;
-            let modifiers = [SemanticTokenModifier.Declaration];
+            const modifiers = [SemanticTokenModifier.Declaration];
             if (this.isMatch(TokenType.Private)) {
                 modifiers.push(SemanticTokenModifier.Private);
-                isPrivate = { token: this.peek(-1), type: SemanticTokenType.Storage };
+                isPrivate = {
+                    token: this.peek(-1),
+                    type: SemanticTokenType.Storage,
+                };
             }
             if (this.isMatch(TokenType.Static)) {
                 modifiers.push(SemanticTokenModifier.Static);
-                isStatic = { token: this.peek(-1), type: SemanticTokenType.Storage };
+                isStatic = {
+                    token: this.peek(-1),
+                    type: SemanticTokenType.Storage,
+                };
             }
             if (this.isMatch(TokenType.Readonly)) {
                 modifiers.push(SemanticTokenModifier.Readonly);
-                readonly = { token: this.peek(-1), type: SemanticTokenType.Storage };
+                readonly = {
+                    token: this.peek(-1),
+                    type: SemanticTokenType.Storage,
+                };
             }
 
             const current = this.peek();
             if (this.isMatch(TokenType.Var)) {
                 const variable = this.peek(-1);
-                const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Property, modifiers, "Expected field name after 'var'");
+                const id = this.checkAsSemantic(
+                    TokenType.Identifier,
+                    SemanticTokenType.Property,
+                    modifiers,
+                    "Expected field name after 'var'"
+                );
                 const targetted = isStatic ? staticFields : fields;
                 if (targetted.find((v) => v.name.id === id.token.content)) {
                     this.error("Class cannot contain duplicate field name");
@@ -289,34 +461,80 @@ export class Parser extends TokenReader {
                 let expr: Expression;
                 if (this.isMatch(TokenType.AssignOperator)) {
                     expr = this.expression();
-                    this.check(TokenType.Semicolon, "Expected ';' after field assignment");
+                    this.check(
+                        TokenType.Semicolon,
+                        "Expected ';' after field assignment"
+                    );
                 } else if (this.isMatch(TokenType.Semicolon)) {
                     expr = new VoidExpr({ token: this.peek(-1) });
                 } else {
-                    this.error("Expected ';' or assignment after field declaration");
+                    this.error(
+                        "Expected ';' or assignment after field declaration"
+                    );
                 }
-                targetted.push(new Variable(new Id(id.token.content, id), readonly, isPrivate, expr, hint, { token: variable, type: SemanticTokenType.Storage }));
+                targetted.push(
+                    new Variable(
+                        new Id(id.token.content, id),
+                        readonly,
+                        isPrivate,
+                        expr,
+                        hint,
+                        { token: variable, type: SemanticTokenType.Storage }
+                    )
+                );
             } else {
                 // TODO:
-                this.error("Unexpected token in class statement: " + current.content, current);
+                this.error(
+                    "Unexpected token in class statement: " + current.content,
+                    current
+                );
             }
         }
-        return new ClassBody(fields, staticFields, initialisers, constructors, methods, staticMethods, operators, { token: start });
+        return new ClassBody(
+            fields,
+            staticFields,
+            initialisers,
+            constructors,
+            methods,
+            staticMethods,
+            operators,
+            { token: start }
+        );
     }
 
-    functionDeclaration(isClass: boolean, ...modifiers: SemanticTokenModifier[]): Statement {
+    functionDeclaration(
+        isClass: boolean,
+        ...modifiers: SemanticTokenModifier[]
+    ): Statement {
         if (!modifiers.includes(SemanticTokenModifier.Declaration)) {
             modifiers.push(SemanticTokenModifier.Declaration);
         }
-        const fun = this.checkAsSemantic(TokenType.Fun, SemanticTokenType.Storage);
-        const id = this.checkAsSemantic(TokenType.Identifier, isClass ? SemanticTokenType.Method : SemanticTokenType.Function, modifiers, "Expected function name");
+        const fun = this.checkAsSemantic(
+            TokenType.Fun,
+            SemanticTokenType.Storage
+        );
+        const id = this.checkAsSemantic(
+            TokenType.Identifier,
+            isClass ? SemanticTokenType.Method : SemanticTokenType.Function,
+            modifiers,
+            "Expected function name"
+        );
         this.check(TokenType.LeftBracket, "Expeced '(' after function name");
 
         const [parameters, varargs] = this.functionParameters();
         const returns = this.typeHint();
         const body = this.statement();
 
-        return new Function(new Id(id.token.content, id), isClass, modifiers.includes(SemanticTokenModifier.Private), parameters, varargs, returns, body, fun);
+        return new Function(
+            new Id(id.token.content, id),
+            isClass,
+            modifiers.includes(SemanticTokenModifier.Private),
+            parameters,
+            varargs,
+            returns,
+            body,
+            fun
+        );
     }
 
     functionParameters(): [Parameter[], boolean] {
@@ -324,9 +542,17 @@ export class Parser extends TokenReader {
         let isVarargs = false;
         this.pushUnpack(false, () => {
             let isFirst = true;
-            while (this.isMatch(TokenType.RightBracket) && (isFirst || this.isMatch(TokenType.Comma))) {
-                const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Parameter, [SemanticTokenModifier.Declaration], "Expected argument name");
-    
+            while (
+                this.isMatch(TokenType.RightBracket) &&
+                (isFirst || this.isMatch(TokenType.Comma))
+            ) {
+                const id = this.checkAsSemantic(
+                    TokenType.Identifier,
+                    SemanticTokenType.Parameter,
+                    [SemanticTokenModifier.Declaration],
+                    "Expected argument name"
+                );
+
                 if (this.isMatch(TokenType.Arbitrary)) {
                     this.check(TokenType.RightBracket);
                     parameters.push(new Parameter(id.token.content, [], id));
@@ -334,7 +560,9 @@ export class Parser extends TokenReader {
                     return;
                 }
 
-                parameters.push(new Parameter(id.token.content, this.typeHint(), id));
+                parameters.push(
+                    new Parameter(id.token.content, this.typeHint(), id)
+                );
                 isFirst = false;
             }
         });
@@ -345,7 +573,12 @@ export class Parser extends TokenReader {
         const types: Type[] = [];
         if (this.isMatch(TokenType.Colon)) {
             do {
-                const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Class, undefined, "Expected class name");
+                const id = this.checkAsSemantic(
+                    TokenType.Identifier,
+                    SemanticTokenType.Class,
+                    undefined,
+                    "Expected class name"
+                );
                 types.push(new Type(id.token.content, id));
             } while (this.isMatch(TokenType.BitOr));
         }
@@ -384,13 +617,13 @@ export class Parser extends TokenReader {
 
     statement(): Statement {
         switch (this.peekType()) {
-            case TokenType.If: 
+            case TokenType.If:
                 return this.ifStatement();
-            case TokenType.Switch: 
+            case TokenType.Switch:
                 return this.switchStatement();
-            case TokenType.While: 
+            case TokenType.While:
                 return this.whileStatement();
-            case TokenType.For: 
+            case TokenType.For:
                 return this.forStatement();
             case TokenType.Foreach:
                 return this.foreachStatement();
@@ -400,24 +633,27 @@ export class Parser extends TokenReader {
                 return this.throwStatement();
             case TokenType.Return:
                 return this.returnStatement();
-            case TokenType.Continue: 
+            case TokenType.Continue:
                 return this.continueStatement();
             case TokenType.Break:
                 return this.breakStatement();
             case TokenType.Import:
                 return this.importStatement();
-            case TokenType.Semicolon: 
+            case TokenType.Semicolon:
                 const tk = this.advance();
                 return new Void({ token: tk });
-            case TokenType.LeftCurlyBracket: 
+            case TokenType.LeftCurlyBracket:
                 return this.scopedStatement();
-            default: 
+            default:
                 return this.expressionStatement();
         }
     }
 
     ifStatement() {
-        const iff = this.checkAsSemantic(TokenType.If, SemanticTokenType.Keyword);
+        const iff = this.checkAsSemantic(
+            TokenType.If,
+            SemanticTokenType.Keyword
+        );
         this.check(TokenType.LeftBracket, "Expected '(' after 'if'");
         const condition = this.expression();
         this.check(TokenType.RightBracket, "Expected ')' after if condition");
@@ -426,7 +662,10 @@ export class Parser extends TokenReader {
         let otherwise: Else;
         if (next.type === TokenType.Else) {
             this.advance();
-            otherwise = new Else(this.scopedStatement(), { token: next, type: SemanticTokenType.Keyword });
+            otherwise = new Else(this.scopedStatement(), {
+                token: next,
+                type: SemanticTokenType.Keyword,
+            });
         } else {
             otherwise = new Else(new Void({ token: next }), { token: next });
         }
@@ -434,11 +673,20 @@ export class Parser extends TokenReader {
     }
 
     switchStatement() {
-        const sw = this.checkAsSemantic(TokenType.Switch, SemanticTokenType.Keyword);
+        const sw = this.checkAsSemantic(
+            TokenType.Switch,
+            SemanticTokenType.Keyword
+        );
         this.check(TokenType.LeftBracket, "Expected '(' after 'switch'");
         const condition = this.expression();
-        this.check(TokenType.RightBracket, "Expected ')' after switch condition");
-        this.check(TokenType.LeftCurlyBracket, "Expceted '{' after switch condition");
+        this.check(
+            TokenType.RightBracket,
+            "Expected ')' after switch condition"
+        );
+        this.check(
+            TokenType.LeftCurlyBracket,
+            "Expceted '{' after switch condition"
+        );
 
         const cases: Expression[][] = [];
         const caseStatements: Statement[] = [];
@@ -449,15 +697,25 @@ export class Parser extends TokenReader {
             if (current.type === TokenType.Default) {
                 this.advance();
                 if (def !== null) {
-                    this.error("Switch statement can only have one default case");
+                    this.error(
+                        "Switch statement can only have one default case"
+                    );
                 }
                 this.check(TokenType.Pointer, "Expected '->' after 'default'");
                 def = this.scopedStatement();
                 continue;
             }
-            const cas = this.checkAsSemantic(TokenType.Case, SemanticTokenType.Keyword, undefined, "Expected 'case' or 'default' in switch body");
+            const cas = this.checkAsSemantic(
+                TokenType.Case,
+                SemanticTokenType.Keyword,
+                undefined,
+                "Expected 'case' or 'default' in switch body"
+            );
             const subcases = this.expressions();
-            this.check(TokenType.Pointer, "Expected '->' after 'case' expressions");
+            this.check(
+                TokenType.Pointer,
+                "Expected '->' after 'case' expressions"
+            );
             const statement = this.scopedStatement();
             cases.push(subcases);
             caseStatements.push(statement);
@@ -467,16 +725,25 @@ export class Parser extends TokenReader {
     }
 
     whileStatement() {
-        const whil = this.checkAsSemantic(TokenType.While, SemanticTokenType.Keyword);
+        const whil = this.checkAsSemantic(
+            TokenType.While,
+            SemanticTokenType.Keyword
+        );
         this.check(TokenType.LeftBracket, "Expected '(' after 'while'");
         const condition = this.expression();
-        this.check(TokenType.RightBracket, "Expected ')' after while condition");
+        this.check(
+            TokenType.RightBracket,
+            "Expected ')' after while condition"
+        );
         const body = this.scopedStatement();
         return new While(condition, body, whil);
     }
 
     forStatement() {
-        const fo = this.checkAsSemantic(TokenType.For, SemanticTokenType.Keyword);
+        const fo = this.checkAsSemantic(
+            TokenType.For,
+            SemanticTokenType.Keyword
+        );
         this.check(TokenType.LeftBracket, "Expected '(' after 'for'");
         let initial: Statement;
         switch (this.peekType()) {
@@ -485,47 +752,89 @@ export class Parser extends TokenReader {
                 break;
             case TokenType.Semicolon:
                 initial = new Void({ token: this.advance() });
+                break;
             default:
                 initial = this.expressionStatement();
         }
-        const condition = this.peekType() === TokenType.Semicolon ? new Literal(true, { token: this.advance() }) : this.expression();
+        const condition =
+            this.peekType() === TokenType.Semicolon
+                ? new Literal(true, { token: this.advance() })
+                : this.expression();
         this.check(TokenType.Semicolon, "Expected ';' after for condition");
-        const end = this.peekType() === TokenType.RightBracket ? new VoidExpr({ token: this.advance() }) : this.expression();
+        const end =
+            this.peekType() === TokenType.RightBracket
+                ? new VoidExpr({ token: this.advance() })
+                : this.expression();
         this.check(TokenType.RightBracket, "Expected ')' after for expression");
         const body = this.statement();
         return new For(initial, condition, end, body, fo);
     }
 
     foreachStatement() {
-        const foreach = this.checkAsSemantic(TokenType.Foreach, SemanticTokenType.Keyword);
+        const foreach = this.checkAsSemantic(
+            TokenType.Foreach,
+            SemanticTokenType.Keyword
+        );
         this.check(TokenType.LeftBracket, "Expected '(' after 'foreach'");
-        const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Variable, [SemanticTokenModifier.Declaration], "Expected foreach variable name after '('");
-        this.check(TokenType.Colon, "Expected ':' between variable name and iterator expression");
+        const id = this.checkAsSemantic(
+            TokenType.Identifier,
+            SemanticTokenType.Variable,
+            [SemanticTokenModifier.Declaration],
+            "Expected foreach variable name after '('"
+        );
+        this.check(
+            TokenType.Colon,
+            "Expected ':' between variable name and iterator expression"
+        );
         const iter = this.expression();
-        this.check(TokenType.RightBracket, "Expected ')' after iterator expression");
+        this.check(
+            TokenType.RightBracket,
+            "Expected ')' after iterator expression"
+        );
         const body = this.statement();
         return new Foreach(new Id(id.token.content, id), iter, body, foreach);
     }
 
     tryStatement() {
-        const tr = this.checkAsSemantic(TokenType.Try, SemanticTokenType.Keyword);
+        const tr = this.checkAsSemantic(
+            TokenType.Try,
+            SemanticTokenType.Keyword
+        );
         const body = this.scopedStatement();
         let catc: Catch | null = null;
         const current = this.peek();
         if (current.type === TokenType.Catch) {
             this.advance();
             this.check(TokenType.LeftBracket, "Expected '(' after 'catch'");
-            const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Variable, [SemanticTokenModifier.Declaration], "Expected catch variable name after '('");
-            const parameter = new Parameter(id.token.content, this.typeHint(), id);
-            this.check(TokenType.RightBracket, "Expected ')' after catch parameter");
+            const id = this.checkAsSemantic(
+                TokenType.Identifier,
+                SemanticTokenType.Variable,
+                [SemanticTokenModifier.Declaration],
+                "Expected catch variable name after '('"
+            );
+            const parameter = new Parameter(
+                id.token.content,
+                this.typeHint(),
+                id
+            );
+            this.check(
+                TokenType.RightBracket,
+                "Expected ')' after catch parameter"
+            );
             const catchBody = this.statement();
-            catc = new Catch(body, parameter, { token: current, type: SemanticTokenType.Keyword });
+            catc = new Catch(body, parameter, {
+                token: current,
+                type: SemanticTokenType.Keyword,
+            });
         }
         let final: Finally;
         const next = this.peek();
         if (next.type === TokenType.Finally) {
             this.advance();
-            final = new Finally(this.scopedStatement(), { token: next, type: SemanticTokenType.Keyword });
+            final = new Finally(this.scopedStatement(), {
+                token: next,
+                type: SemanticTokenType.Keyword,
+            });
         } else {
             final = new Finally(new Void({ token: next }), { token: next });
         }
@@ -533,14 +842,20 @@ export class Parser extends TokenReader {
     }
 
     throwStatement() {
-        const thr = this.checkAsSemantic(TokenType.Throw, SemanticTokenType.Keyword);
+        const thr = this.checkAsSemantic(
+            TokenType.Throw,
+            SemanticTokenType.Keyword
+        );
         const expression = this.expression();
         this.check(TokenType.Semicolon, "Expected ';' after throw expression");
         return new Throw(expression, thr);
     }
 
     returnStatement() {
-        const ret = this.checkAsSemantic(TokenType.Return, SemanticTokenType.Keyword);
+        const ret = this.checkAsSemantic(
+            TokenType.Return,
+            SemanticTokenType.Keyword
+        );
         if (this.isMatch(TokenType.Semicolon)) {
             return new Return(new VoidExpr({ token: this.peek(-1) }), ret);
         }
@@ -550,39 +865,81 @@ export class Parser extends TokenReader {
     }
 
     continueStatement() {
-        const cont = this.checkAsSemantic(TokenType.Continue, SemanticTokenType.Keyword);
+        const cont = this.checkAsSemantic(
+            TokenType.Continue,
+            SemanticTokenType.Keyword
+        );
         this.check(TokenType.Semicolon, "Expected ';' after 'continue'");
         return new Continue(cont);
     }
 
     breakStatement() {
-        const brek = this.checkAsSemantic(TokenType.Break, SemanticTokenType.Keyword);
+        const brek = this.checkAsSemantic(
+            TokenType.Break,
+            SemanticTokenType.Keyword
+        );
         this.check(TokenType.Semicolon, "Expected ';' after 'break'");
         return new Break(brek);
     }
 
     importStatement() {
-        const imp = this.checkAsSemantic(TokenType.Import, SemanticTokenType.Storage);
-        const loc = this.checkAsSemantic(TokenType.Local, SemanticTokenType.Storage);
+        const imp = this.checkAsSemantic(
+            TokenType.Import,
+            SemanticTokenType.Storage
+        );
+        const loc = this.checkAsSemantic(
+            TokenType.Local,
+            SemanticTokenType.Storage
+        );
         const names: Type[] = [];
         if (!this.isMatch(TokenType.Multiply)) {
             do {
-                const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Class);
+                const id = this.checkAsSemantic(
+                    TokenType.Identifier,
+                    SemanticTokenType.Class
+                );
                 names.push(new Type(id.token.content, id));
             } while (this.isMatch(TokenType.Comma));
         } else {
             names.push(new Type("*", { token: this.peek(-1) }));
         }
-        const from = this.checkAsSemantic(TokenType.From, SemanticTokenType.Storage, undefined, "Expected 'from' after import names");
-        let builder = new String(this.check(TokenType.Identifier, "Expected module name").content);
+        const from = this.checkAsSemantic(
+            TokenType.From,
+            SemanticTokenType.Storage,
+            undefined,
+            "Expected 'from' after import names"
+        );
+        let builder = new String(
+            this.check(TokenType.Identifier, "Expected module name").content
+        );
         const first = this.peek(-1).trace;
         while (this.isMatch(TokenType.Dot)) {
-            builder += this.check(TokenType.Identifier, "Expected submodule name after '.'").content;
+            builder += this.check(
+                TokenType.Identifier,
+                "Expected submodule name after '.'"
+            ).content;
         }
         const last = this.peek(-1).trace;
         this.check(TokenType.Semicolon, "Expected ';' after module name");
-        const idToken: SemanticToken = { token: new Token(TokenType.Identifier, new Trace(first.lineStart, first.columnStart, last.lineEnd, last.columnEnd, first.offset, last.offset - first.offset), builder.toString()) };
-        return new Import(names, new From(new Id(builder.toString(), idToken), from), imp);
+        const idToken: SemanticToken = {
+            token: new Token(
+                TokenType.Identifier,
+                new Trace(
+                    first.lineStart,
+                    first.columnStart,
+                    last.lineEnd,
+                    last.columnEnd,
+                    first.offset,
+                    last.offset - first.offset
+                ),
+                builder.toString()
+            ),
+        };
+        return new Import(
+            names,
+            new From(new Id(builder.toString(), idToken), from),
+            imp
+        );
     }
 
     expressionStatement(): Statement {
@@ -592,7 +949,7 @@ export class Parser extends TokenReader {
             expression = this.expression();
         });
         this.check(TokenType.Semicolon, "Expected ';' after expression");
-        return new ExpressionStmt(expression!!, { token: start });
+        return new ExpressionStmt(expression!, { token: start });
     }
 
     expression(): Expression {
@@ -636,7 +993,12 @@ export class Parser extends TokenReader {
                 break;
             }
         } while (true);
-        const assign = this.checkAsSemantic(TokenType.AssignOperator, undefined, undefined, "Expected '=' after unpack variables");
+        const assign = this.checkAsSemantic(
+            TokenType.AssignOperator,
+            undefined,
+            undefined,
+            "Expected '=' after unpack variables"
+        );
         const assignee = this.expression();
         return new UnpackAssign(assignables, assignee, assign);
     }
@@ -720,7 +1082,10 @@ export class Parser extends TokenReader {
         let left = this.relational();
         while (true) {
             const current = this.peek();
-            if (current.type === TokenType.Equals || current.type === TokenType.NotEquals) {
+            if (
+                current.type === TokenType.Equals ||
+                current.type === TokenType.NotEquals
+            ) {
                 this.advance();
                 const right = this.relational();
                 left = new Binary(left, right, { token: current });
@@ -735,7 +1100,12 @@ export class Parser extends TokenReader {
         let left = this.shift();
         while (true) {
             const current = this.peek();
-            if (current.type === TokenType.LessThan || current.type === TokenType.MoreThan || current.type === TokenType.LessThanEqual || current.type === TokenType.MoreThanEqual) {
+            if (
+                current.type === TokenType.LessThan ||
+                current.type === TokenType.MoreThan ||
+                current.type === TokenType.LessThanEqual ||
+                current.type === TokenType.MoreThanEqual
+            ) {
                 this.advance();
                 const right = this.shift();
                 left = new Binary(left, right, { token: current });
@@ -750,7 +1120,10 @@ export class Parser extends TokenReader {
         let left = this.additive();
         while (true) {
             const current = this.peek();
-            if (current.type === TokenType.ShiftLeft || current.type === TokenType.ShiftRight) {
+            if (
+                current.type === TokenType.ShiftLeft ||
+                current.type === TokenType.ShiftRight
+            ) {
                 this.advance();
                 const right = this.additive();
                 left = new Binary(left, right, { token: current });
@@ -765,7 +1138,10 @@ export class Parser extends TokenReader {
         let left = this.multiplicative();
         while (true) {
             const current = this.peek();
-            if (current.type === TokenType.Plus || current.type === TokenType.Minus) {
+            if (
+                current.type === TokenType.Plus ||
+                current.type === TokenType.Minus
+            ) {
                 this.advance();
                 const right = this.multiplicative();
                 left = new Binary(left, right, { token: current });
@@ -780,7 +1156,10 @@ export class Parser extends TokenReader {
         let left = this.unary();
         while (true) {
             const current = this.peek();
-            if (current.type === TokenType.Multiply || current.type === TokenType.Divide) {
+            if (
+                current.type === TokenType.Multiply ||
+                current.type === TokenType.Divide
+            ) {
                 this.advance();
                 const right = this.unary();
                 left = new Binary(left, right, { token: current });
@@ -793,7 +1172,11 @@ export class Parser extends TokenReader {
 
     unary(): Expression {
         const current = this.peek();
-        if (current.type === TokenType.Not || current.type === TokenType.Plus || current.type === TokenType.Minus) {
+        if (
+            current.type === TokenType.Not ||
+            current.type === TokenType.Plus ||
+            current.type === TokenType.Minus
+        ) {
             this.advance();
             const unary = this.unary();
             return new Unary(unary, { token: current });
@@ -822,33 +1205,60 @@ export class Parser extends TokenReader {
         while (repeat) {
             const current = this.peek();
             switch (current.type) {
-                case TokenType.LeftBracket: 
+                case TokenType.LeftBracket:
                     this.advance();
                     let args: Expression[] = [];
                     if (!this.isMatch(TokenType.RightBracket)) {
                         args = this.expressions();
-                        this.check(TokenType.RightBracket, "Expected ')' after call arguments");
+                        this.check(
+                            TokenType.RightBracket,
+                            "Expected ')' after call arguments"
+                        );
                     }
-                    expression = this.isCallable(expression) ? expression.toCallable(args) : new Call(expression, args, { token: current });
+                    expression = this.isCallable(expression)
+                        ? expression.toCallable(args)
+                        : new Call(expression, args, { token: current });
                     break;
-                case TokenType.LeftSquareBracket: 
+                case TokenType.LeftSquareBracket:
                     this.advance();
                     const index = this.expression();
-                    this.check(TokenType.RightSquareBracket, "Expected '[' after index");
-                    expression = new BracketAccess(expression, index, { token: current });
+                    this.check(
+                        TokenType.RightSquareBracket,
+                        "Expected '[' after index"
+                    );
+                    expression = new BracketAccess(expression, index, {
+                        token: current,
+                    });
                     break;
                 case TokenType.Dot:
                     this.advance();
-                    const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Property, undefined, "Expected field name after '.'");
-                    expression = new MemberAccess(expression, id.token.content, id);
+                    const id = this.checkAsSemantic(
+                        TokenType.Identifier,
+                        SemanticTokenType.Property,
+                        undefined,
+                        "Expected field name after '.'"
+                    );
+                    expression = new MemberAccess(
+                        expression,
+                        id.token.content,
+                        id
+                    );
                     break;
                 case TokenType.Increment:
-                    expression = this.binaryAssignment(expression, TokenType.Plus, new Literal(1, { token: this.peek() }));
+                    expression = this.binaryAssignment(
+                        expression,
+                        TokenType.Plus,
+                        new Literal(1, { token: this.peek() })
+                    );
                     break;
                 case TokenType.Decrement:
-                    expression = this.binaryAssignment(expression, TokenType.Minus, new Literal(1, { token: this.peek() }));
+                    expression = this.binaryAssignment(
+                        expression,
+                        TokenType.Minus,
+                        new Literal(1, { token: this.peek() })
+                    );
                     break;
-                default: 
+                default:
                     repeat = false;
             }
         }
@@ -861,26 +1271,49 @@ export class Parser extends TokenReader {
             case TokenType.False:
             case TokenType.True:
                 this.advance();
-                return new Literal(current.type === TokenType.True, { token: current, type: SemanticTokenType.Storage });
+                return new Literal(current.type === TokenType.True, {
+                    token: current,
+                    type: SemanticTokenType.Storage,
+                });
             case TokenType.Null:
                 this.advance();
-                return new Literal(null, { token: current, type: SemanticTokenType.Storage });
+                return new Literal(null, {
+                    token: current,
+                    type: SemanticTokenType.Storage,
+                });
             case TokenType.Identifier:
                 this.advance();
-                return new Access(current.content, { token: current, type: SemanticTokenType.Variable });
+                return new Access(current.content, {
+                    token: current,
+                    type: SemanticTokenType.Variable,
+                });
             case TokenType.Number:
                 this.advance();
-                return new Literal(Number(current.content), { token: current, type: SemanticTokenType.Number });
+                return new Literal(Number(current.content), {
+                    token: current,
+                    type: SemanticTokenType.Number,
+                });
             case TokenType.String:
                 this.advance();
-                const str = current.content;
-                return new Literal(str.substring(1, str.length - 1), { token: current, type: SemanticTokenType.String });
+                return new Literal(
+                    current.content.substring(1, current.content.length - 1),
+                    {
+                        token: current,
+                        type: SemanticTokenType.String,
+                    }
+                );
             case TokenType.This:
                 this.advance();
-                return new This({ token: current, type: SemanticTokenType.Storage });
+                return new This({
+                    token: current,
+                    type: SemanticTokenType.Storage,
+                });
             case TokenType.Super:
                 this.advance();
-                return new Super({ token: current, type: SemanticTokenType.Storage });
+                return new Super({
+                    token: current,
+                    type: SemanticTokenType.Storage,
+                });
             case TokenType.LeftSquareBracket:
                 return this.listLiteral();
             case TokenType.LeftCurlyBracket:
@@ -888,14 +1321,25 @@ export class Parser extends TokenReader {
             case TokenType.LeftBracket:
                 this.advance();
                 const expression = this.expression();
-                this.check(TokenType.RightBracket, "Expected ')' after expression");
+                this.check(
+                    TokenType.RightBracket,
+                    "Expected ')' after expression"
+                );
                 return new Bracket(expression, { token: current });
             case TokenType.Fun:
                 return this.functionExpression();
             case TokenType.New:
                 this.advance();
-                const id = this.checkAsSemantic(TokenType.Identifier, SemanticTokenType.Class, undefined, "Expected class name after 'new'");
-                return new NewAccess(new Id(id.token.content, id), { token: current, type: SemanticTokenType.Storage });
+                const id = this.checkAsSemantic(
+                    TokenType.Identifier,
+                    SemanticTokenType.Class,
+                    undefined,
+                    "Expected class name after 'new'"
+                );
+                return new NewAccess(new Id(id.token.content, id), {
+                    token: current,
+                    type: SemanticTokenType.Storage,
+                });
             default:
                 this.error();
         }
@@ -915,7 +1359,10 @@ export class Parser extends TokenReader {
         const start = this.checkAsSemantic(TokenType.LeftSquareBracket);
         if (!this.isMatch(TokenType.RightSquareBracket)) {
             const expressions = this.expressions();
-            this.check(TokenType.RightSquareBracket, "Expected closing ']' after list expressions");
+            this.check(
+                TokenType.RightSquareBracket,
+                "Expected closing ']' after list expressions"
+            );
             return new List(expressions, start);
         }
         return new List([], start);
@@ -928,17 +1375,26 @@ export class Parser extends TokenReader {
             if (!this.isMatch(TokenType.RightCurlyBracket)) {
                 do {
                     const key = this.expression();
-                    this.check(TokenType.Colon, "Expected ':' between key and value in a map");
+                    this.check(
+                        TokenType.Colon,
+                        "Expected ':' between key and value in a map"
+                    );
                     map.set(key, this.expression());
                 } while (this.isMatch(TokenType.Comma));
-                this.check(TokenType.RightCurlyBracket, "Expected closing '}' after map expression");
+                this.check(
+                    TokenType.RightCurlyBracket,
+                    "Expected closing '}' after map expression"
+                );
             }
         });
         return new MapExpr(map, start);
     }
 
     functionExpression() {
-        const fun = this.checkAsSemantic(TokenType.Fun, SemanticTokenType.Storage);
+        const fun = this.checkAsSemantic(
+            TokenType.Fun,
+            SemanticTokenType.Storage
+        );
         this.check(TokenType.LeftBracket, "Expected '(' after 'fun'");
         const [parameters, varargs] = this.functionParameters();
         const returns = this.typeHint();
@@ -952,12 +1408,18 @@ export class Parser extends TokenReader {
         return new FunctionExpr(parameters, varargs, returns, body, fun);
     }
 
-    binaryAssignment(expression: Expression, type: TokenType, other: Expression) {
+    binaryAssignment(
+        expression: Expression,
+        type: TokenType,
+        other: Expression
+    ) {
         if (!this.isAssignable(expression)) {
             this.error("Cannot modify a non assignable expression");
         }
-        const token =  new Token(type, this.peek(-1).trace, type.toString());
-        return expression.toAssignable(new Binary(expression, other, { token: token }));
+        const token = new Token(type, this.peek(-1).trace, type.toString());
+        return expression.toAssignable(
+            new Binary(expression, other, { token: token })
+        );
     }
 
     convertAssignment(type: TokenType) {
@@ -967,7 +1429,7 @@ export class Parser extends TokenReader {
             case TokenType.MinusAssign:
                 return TokenType.Minus;
             case TokenType.MultiplyAssign:
-                return TokenType.Multiply;  
+                return TokenType.Multiply;
             case TokenType.DivideAssign:
                 return TokenType.Divide;
             case TokenType.PowerAssign:
@@ -982,26 +1444,38 @@ export class Parser extends TokenReader {
         return null;
     }
 
-    checkAsSemantic(type: TokenType, semantic?: SemanticTokenType, modifiers?: SemanticTokenModifier[], message?: string): SemanticToken {
+    checkAsSemantic(
+        type: TokenType,
+        semantic?: SemanticTokenType,
+        modifiers?: SemanticTokenModifier[],
+        message?: string
+    ): SemanticToken {
         const token = this.check(type, message);
         return {
             token: token,
             type: semantic,
-            modifiers: modifiers
+            modifiers: modifiers,
         };
     }
 
     check(type: TokenType, message?: string): Token {
         const current = this.peek();
         if (current.type !== type) {
-            this.error(message ?? `Unexpected token ${current.content}, expected type: ${type}`, current);
+            this.error(
+                message ??
+                    `Unexpected token ${current.content}, expected type: ${type}`,
+                current
+            );
         }
         this.advance();
         return current;
     }
 
     error(message?: string, token: Token = this.peek()): never {
-        throw new ParseError({ token: token }, message ?? `Unexpected token ${token.content}`);
+        throw new ParseError(
+            { token: token },
+            message ?? `Unexpected token ${token.content}`
+        );
     }
 
     errorSkip(error: ParseError) {
@@ -1014,7 +1488,7 @@ export class Parser extends TokenReader {
                     case TokenType.Fun:
                     case TokenType.If:
                     case TokenType.For:
-                    case TokenType.Foreach: 
+                    case TokenType.Foreach:
                     case TokenType.Local:
                     case TokenType.While:
                     case TokenType.Return:
@@ -1030,7 +1504,13 @@ export class Parser extends TokenReader {
                 }
             }
         } finally {
-            this.errors.push(new Problem(error.start, { token: this.peek(-1) }, error.message));
+            this.errors.push(
+                new Problem(
+                    error.start,
+                    { token: this.peek(-1) },
+                    error.message
+                )
+            );
         }
     }
 
@@ -1044,11 +1524,17 @@ export class Parser extends TokenReader {
         }
     }
 
-    isAssignable(object: any): object is ToAssignable {
-        return "toAssignable" in object;
+    isAssignable(object: unknown): object is ToAssignable {
+        if (object && typeof object === "object") {
+            return "toAssignable" in object;
+        }
+        return false;
     }
 
-    isCallable(object: any): object is ToCallable {
-        return "toCallable" in object;
+    isCallable(object: unknown): object is ToCallable {
+        if (object && typeof object === "object") {
+            return "toCallable" in object;
+        }
+        return false;
     }
 }
