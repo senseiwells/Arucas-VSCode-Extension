@@ -18,7 +18,7 @@ export interface ExpressionVisitor<T> {
     visitFunctionAccess(func: FunctionAccess): T;
     visitFunctionExpr(func: FunctionExpr): T;
     visitList(list: List): T;
-    visitLiteral(literal: Literal<any>): T;
+    visitLiteral(literal: Literal<string | number | boolean | null>): T;
     visitMap(map: MapExpr): T;
     visitMemberAccess(member: MemberAccess): T;
     visitMemberAssign(member: MemberAssign): T;
