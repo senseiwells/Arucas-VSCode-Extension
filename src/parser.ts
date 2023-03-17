@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-types */
+/* eslint-disable no-constant-condition */
 /* eslint-disable @typescript-eslint/naming-convention */
 
 import {
@@ -105,20 +107,20 @@ class TokenReader {
 
     constructor(private readonly tokens: Token[]) {}
 
-    advance(amount: number = 1) {
+    advance(amount = 1) {
         this.index = this.getOffset(amount);
         return this.tokens[this.index];
     }
 
-    receded(amount: number = 1) {
+    receded(amount = 1) {
         return this.advance(-amount);
     }
 
-    peek(amount: number = 0) {
+    peek(amount = 0) {
         return this.tokens[this.getOffset(amount)];
     }
 
-    peekType(amount: number = 0) {
+    peekType(amount = 0) {
         return this.peek(amount).type;
     }
 
@@ -416,7 +418,7 @@ export class Parser extends TokenReader {
             let isPrivate: PossibleModifier = null;
             let isStatic: PossibleModifier = null;
             let readonly: PossibleModifier = null;
-            let modifiers = [SemanticTokenModifier.Declaration];
+            const modifiers = [SemanticTokenModifier.Declaration];
             if (this.isMatch(TokenType.Private)) {
                 modifiers.push(SemanticTokenModifier.Private);
                 isPrivate = {
@@ -588,8 +590,7 @@ export class Parser extends TokenReader {
             case TokenType.LeftCurlyBracket:
                 return this.scope();
             default:
-                const start = this.peek();
-                return new Scope(this.statement(), { token: start });
+                return new Scope(this.statement(), { token: this.peek() });
         }
     }
 
@@ -638,8 +639,7 @@ export class Parser extends TokenReader {
             case TokenType.Import:
                 return this.importStatement();
             case TokenType.Semicolon:
-                const tk = this.advance();
-                return new Void({ token: tk });
+                return new Void({ token: this.advance() });
             case TokenType.LeftCurlyBracket:
                 return this.scopedStatement();
             default:
@@ -750,6 +750,7 @@ export class Parser extends TokenReader {
                 break;
             case TokenType.Semicolon:
                 initial = new Void({ token: this.advance() });
+                break;
             default:
                 initial = this.expressionStatement();
         }
@@ -946,7 +947,7 @@ export class Parser extends TokenReader {
             expression = this.expression();
         });
         this.check(TokenType.Semicolon, "Expected ';' after expression");
-        return new ExpressionStmt(expression!!, { token: start });
+        return new ExpressionStmt(expression!, { token: start });
     }
 
     expression(): Expression {
@@ -1218,14 +1219,17 @@ export class Parser extends TokenReader {
                     break;
                 case TokenType.LeftSquareBracket:
                     this.advance();
-                    const index = this.expression();
                     this.check(
                         TokenType.RightSquareBracket,
                         "Expected '[' after index"
                     );
-                    expression = new BracketAccess(expression, index, {
-                        token: current,
-                    });
+                    expression = new BracketAccess(
+                        expression,
+                        this.expression(),
+                        {
+                            token: current,
+                        }
+                    );
                     break;
                 case TokenType.Dot:
                     this.advance();
@@ -1292,11 +1296,13 @@ export class Parser extends TokenReader {
                 });
             case TokenType.String:
                 this.advance();
-                const str = current.content;
-                return new Literal(str.substring(1, str.length - 1), {
-                    token: current,
-                    type: SemanticTokenType.String,
-                });
+                return new Literal(
+                    current.content.substring(1, current.content.length - 1),
+                    {
+                        token: current,
+                        type: SemanticTokenType.String,
+                    }
+                );
             case TokenType.This:
                 this.advance();
                 return new This({
@@ -1315,12 +1321,11 @@ export class Parser extends TokenReader {
                 return this.mapLiteral();
             case TokenType.LeftBracket:
                 this.advance();
-                const expression = this.expression();
                 this.check(
                     TokenType.RightBracket,
                     "Expected ')' after expression"
                 );
-                return new Bracket(expression, { token: current });
+                return new Bracket(this.expression(), { token: current });
             case TokenType.Fun:
                 return this.functionExpression();
             case TokenType.New:
@@ -1519,11 +1524,17 @@ export class Parser extends TokenReader {
         }
     }
 
-    isAssignable(object: any): object is ToAssignable {
-        return "toAssignable" in object;
+    isAssignable(object: unknown): object is ToAssignable {
+        if (object && typeof object === "object") {
+            return "toAssignable" in object;
+        }
+        return false;
     }
 
-    isCallable(object: any): object is ToCallable {
-        return "toCallable" in object;
+    isCallable(object: unknown): object is ToCallable {
+        if (object && typeof object === "object") {
+            return "toCallable" in object;
+        }
+        return false;
     }
 }
