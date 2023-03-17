@@ -705,7 +705,7 @@ export class Parser extends TokenReader {
                 def = this.scopedStatement();
                 continue;
             }
-            const cas = this.checkAsSemantic(
+            this.checkAsSemantic(
                 TokenType.Case,
                 SemanticTokenType.Keyword,
                 undefined,
@@ -887,7 +887,7 @@ export class Parser extends TokenReader {
             TokenType.Import,
             SemanticTokenType.Storage
         );
-        const loc = this.checkAsSemantic(
+        this.checkAsSemantic(
             TokenType.Local,
             SemanticTokenType.Storage
         );
@@ -944,12 +944,11 @@ export class Parser extends TokenReader {
 
     expressionStatement(): Statement {
         const start = this.peek();
-        let expression: Expression | null = null;
-        this.pushUnpack(true, () => {
-            expression = this.expression();
+        const expression = this.pushUnpack(true, () => {
+            return this.expression();
         });
         this.check(TokenType.Semicolon, "Expected ';' after expression");
-        return new ExpressionStmt(expression!, { token: start });
+        return new ExpressionStmt(expression, { token: start });
     }
 
     expression(): Expression {
@@ -1519,11 +1518,11 @@ export class Parser extends TokenReader {
         }
     }
 
-    pushUnpack(bool: boolean, block: () => void) {
+    pushUnpack<T>(bool: boolean, block: () => T): T {
         const previous = this.canUnpack;
         try {
             this.canUnpack = bool;
-            block();
+            return block();
         } finally {
             this.canUnpack = previous;
         }
