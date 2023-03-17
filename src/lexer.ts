@@ -146,7 +146,7 @@ class LexerRule {
     }
 
     addRegexes(...regexes: string[]): LexerRule {
-        for (let regex in regexes) {
+        for (const regex in regexes) {
             this.addRegex(regex);
         }
         return this;
@@ -171,7 +171,7 @@ class LexerRule {
     }
 
     getMatchLength(str: string): number {
-        var length = 0;
+        let length = 0;
         this.matches.forEach((pattern) => {
             const matches = str.match(pattern);
             if (matches && matches.length) {
@@ -203,8 +203,8 @@ class LexerContext {
     }
 
     nextToken(input: string): LexerToken | null {
-        var selectedRule: LexerRule | undefined;
-        var longestRule = 1;
+        let selectedRule: LexerRule | undefined;
+        let longestRule = 1;
         this.rules.forEach((rule: LexerRule) => {
             const length = rule.getMatchLength(input);
             if (length >= longestRule) {
