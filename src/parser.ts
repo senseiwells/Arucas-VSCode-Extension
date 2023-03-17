@@ -590,7 +590,8 @@ export class Parser extends TokenReader {
             case TokenType.LeftCurlyBracket:
                 return this.scope();
             default:
-                return new Scope(this.statement(), { token: this.peek() });
+                const start = this.peek();
+                return new Scope(this.statement(), { token: start });
         }
     }
 
@@ -639,7 +640,8 @@ export class Parser extends TokenReader {
             case TokenType.Import:
                 return this.importStatement();
             case TokenType.Semicolon:
-                return new Void({ token: this.advance() });
+                const tk = this.advance();
+                return new Void({ token: tk });
             case TokenType.LeftCurlyBracket:
                 return this.scopedStatement();
             default:
@@ -1219,17 +1221,14 @@ export class Parser extends TokenReader {
                     break;
                 case TokenType.LeftSquareBracket:
                     this.advance();
+                    const index = this.expression();
                     this.check(
                         TokenType.RightSquareBracket,
                         "Expected '[' after index"
                     );
-                    expression = new BracketAccess(
-                        expression,
-                        this.expression(),
-                        {
-                            token: current,
-                        }
-                    );
+                    expression = new BracketAccess(expression, index, {
+                        token: current,
+                    });
                     break;
                 case TokenType.Dot:
                     this.advance();
@@ -1321,11 +1320,12 @@ export class Parser extends TokenReader {
                 return this.mapLiteral();
             case TokenType.LeftBracket:
                 this.advance();
+                const expression = this.expression();
                 this.check(
                     TokenType.RightBracket,
                     "Expected ')' after expression"
                 );
-                return new Bracket(this.expression(), { token: current });
+                return new Bracket(expression, { token: current });
             case TokenType.Fun:
                 return this.functionExpression();
             case TokenType.New:
