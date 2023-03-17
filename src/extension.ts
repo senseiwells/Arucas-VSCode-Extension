@@ -15,4 +15,6 @@ export function activate(context: vscode.ExtensionContext) {
     );
 }
 
-export function deactivate() {}
+export function deactivate() {
+    // implement your deactivation logic here
+}
