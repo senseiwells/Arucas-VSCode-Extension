@@ -324,8 +324,8 @@ export class Parser extends TokenReader {
             if (this.isMatch(TokenType.LeftBracket)) {
                 args =
                     this.peekType() === TokenType.RightBracket
-                        ? this.expressions()
-                        : [];
+                        ? []
+                        : this.expressions();
                 this.check(
                     TokenType.RightBracket,
                     "Expected ')' after enum arguments"
@@ -589,9 +589,10 @@ export class Parser extends TokenReader {
         switch (this.peekType()) {
             case TokenType.LeftCurlyBracket:
                 return this.scope();
-            default:
+            default: {
                 const start = this.peek();
                 return new Scope(this.statement(), { token: start });
+            }
         }
     }
 
@@ -640,8 +641,7 @@ export class Parser extends TokenReader {
             case TokenType.Import:
                 return this.importStatement();
             case TokenType.Semicolon:
-                const tk = this.advance();
-                return new Void({ token: tk });
+                return new Void({ token: this.advance() });
             case TokenType.LeftCurlyBracket:
                 return this.scopedStatement();
             default:
@@ -1205,7 +1205,7 @@ export class Parser extends TokenReader {
         while (repeat) {
             const current = this.peek();
             switch (current.type) {
-                case TokenType.LeftBracket:
+                case TokenType.LeftBracket: {
                     this.advance();
                     let args: Expression[] = [];
                     if (!this.isMatch(TokenType.RightBracket)) {
@@ -1219,7 +1219,8 @@ export class Parser extends TokenReader {
                         ? expression.toCallable(args)
                         : new Call(expression, args, { token: current });
                     break;
-                case TokenType.LeftSquareBracket:
+                }
+                case TokenType.LeftSquareBracket: {
                     this.advance();
                     const index = this.expression();
                     this.check(
@@ -1230,7 +1231,8 @@ export class Parser extends TokenReader {
                         token: current,
                     });
                     break;
-                case TokenType.Dot:
+                }
+                case TokenType.Dot: {
                     this.advance();
                     const id = this.checkAsSemantic(
                         TokenType.Identifier,
@@ -1244,6 +1246,7 @@ export class Parser extends TokenReader {
                         id
                     );
                     break;
+                }
                 case TokenType.Increment:
                     expression = this.binaryAssignment(
                         expression,
@@ -1318,7 +1321,7 @@ export class Parser extends TokenReader {
                 return this.listLiteral();
             case TokenType.LeftCurlyBracket:
                 return this.mapLiteral();
-            case TokenType.LeftBracket:
+            case TokenType.LeftBracket: {
                 this.advance();
                 const expression = this.expression();
                 this.check(
@@ -1326,9 +1329,10 @@ export class Parser extends TokenReader {
                     "Expected ')' after expression"
                 );
                 return new Bracket(expression, { token: current });
+            }
             case TokenType.Fun:
                 return this.functionExpression();
-            case TokenType.New:
+            case TokenType.New: {
                 this.advance();
                 const id = this.checkAsSemantic(
                     TokenType.Identifier,
@@ -1340,6 +1344,7 @@ export class Parser extends TokenReader {
                     token: current,
                     type: SemanticTokenType.Storage,
                 });
+            }
             default:
                 this.error();
         }
