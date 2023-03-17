@@ -26,13 +26,12 @@ export class ArucasSemanticTokenProvider
     implements vscode.DocumentSemanticTokensProvider
 {
     async provideDocumentSemanticTokens(
-        document: vscode.TextDocument,
-        token: vscode.CancellationToken
+        document: vscode.TextDocument
     ): Promise<vscode.SemanticTokens> {
         const tokens = new Lexer(document.getText()).createTokens();
         const parser = new Parser(tokens);
         const statements = parser.parse();
-        const problems = parser.problems();
+        // const problems = parser.problems();
         console.log(statements);
 
         const builder = new vscode.SemanticTokensBuilder();
@@ -60,11 +59,8 @@ export class ArucasSemanticTokenProvider
     }
 
     private encodeTokenType(tokenType: string): number {
-        if (TOKEN_TYPES.has(tokenType)) {
-            return TOKEN_TYPES.get(tokenType)!;
-        } else {
-            return TOKEN_TYPES.size + 2;
-        }
+        const mod = TOKEN_TYPES.get(tokenType);
+        return mod ? mod : TOKEN_TYPES.size + 2;
     }
 
     private encodeTokenModifiers(strTokenModifiers?: string[]): number {
@@ -74,8 +70,9 @@ export class ArucasSemanticTokenProvider
         let result = 0;
         for (let i = 0; i < strTokenModifiers.length; i++) {
             const tokenModifier = strTokenModifiers[i];
-            if (TOKEN_MODIFIERS.has(tokenModifier)) {
-                result = result | (1 << TOKEN_MODIFIERS.get(tokenModifier)!);
+            const mod = TOKEN_MODIFIERS.get(tokenModifier);
+            if (mod) {
+                result = result | (1 << mod);
             } else if (tokenModifier === "notInLegend") {
                 result = result | (1 << (TOKEN_MODIFIERS.size + 2));
             }

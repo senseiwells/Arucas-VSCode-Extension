@@ -146,9 +146,9 @@ class LexerRule {
     }
 
     addRegexes(...regexes: string[]): LexerRule {
-        for (const regex in regexes) {
+        regexes.forEach((regex) => {
             this.addRegex(regex);
-        }
+        })
         return this;
     }
 
@@ -161,10 +161,10 @@ class LexerRule {
         const c = regexEscape(close);
         let regex: string;
         if (escape.length === 0) {
-            regex = s + ".*?" + c;
-        } else {
+            regex = "^" + s + ".*?" + c;
+        } else { 
             const e = regexEscape(escape);
-            regex = `${s}(?:${e}(?:${e}|${c}|(?!${c}).)|(?!${e}|${c}).)*${c}`;
+            regex = `^${s}(?:${e}(?:${e}|${c}|(?!${c}).)|(?!${e}|${c}).)*${c}`;
         }
         this.matches.push(new RegExp(regex, "s"));
         return this;
@@ -245,7 +245,7 @@ export class Lexer {
         .addRuleWithConsumer(TokenType.String, (rule) =>
             rule
                 .addMultilineEscape('"', "\\", '"')
-                .addMultilineEscape('"', "\\", '"')
+                .addMultilineEscape("'", "\\", "'")
         )
         .addRuleWithConsumer(TokenType.Number, (rule) =>
             rule.addRegexes("[0-9]+\\.[0-9]+", "[0-9]+", "0[xX][0-9a-fA-F]+")

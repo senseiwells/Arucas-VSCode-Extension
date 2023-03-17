@@ -391,12 +391,24 @@
                 {
                     "begin": "\"",
                     "end": "\"",
-                    "name": "string.quoted.double"
+                    "name": "string.quoted.double",
+                    "patterns": [
+                        {
+                            "match": "\\\\.",
+                            "name": "constant.character.escape.arucas"
+                        }
+                    ]
                 },
                 {
                     "begin": "'",
                     "end": "'",
-                    "name": "string.quoted.single"
+                    "name": "string.quoted.single",
+                    "patterns": [
+                        {
+                            "match": "\\\\.",
+                            "name": "constant.character.escape.arucas"
+                        }
+                    ]
                 },
                 {
                     "begin": "{",

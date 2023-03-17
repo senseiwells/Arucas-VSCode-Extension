@@ -74,7 +74,10 @@ export class Access extends Expression implements ToAssignable, ToCallable {
         return new Call(
             new FunctionAccess(this.name, args.length, this.token),
             args,
-            this.token
+            { 
+                token: this.token.token, 
+                type: SemanticTokenType.Function 
+            }
         );
     }
 }

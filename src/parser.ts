@@ -326,6 +326,7 @@ export class Parser extends TokenReader {
                     this.peekType() === TokenType.RightBracket
                         ? []
                         : this.expressions();
+                console.log(args);
                 this.check(
                     TokenType.RightBracket,
                     "Expected ')' after enum arguments"
@@ -543,7 +544,7 @@ export class Parser extends TokenReader {
         this.pushUnpack(false, () => {
             let isFirst = true;
             while (
-                this.isMatch(TokenType.RightBracket) &&
+                !this.isMatch(TokenType.RightBracket) &&
                 (isFirst || this.isMatch(TokenType.Comma))
             ) {
                 const id = this.checkAsSemantic(
@@ -611,7 +612,7 @@ export class Parser extends TokenReader {
         const statements: Statement[] = [];
         do {
             statements.push(this.declaration());
-        } while (!this.isMatch(TokenType.RightCurlyBracket));
+        } while (!this.isMatch(TokenType.RightCurlyBracket) && !this.isAtEnd());
 
         return new Statements(statements, start);
     }
@@ -1301,7 +1302,7 @@ export class Parser extends TokenReader {
                     current.content.substring(1, current.content.length - 1),
                     {
                         token: current,
-                        type: SemanticTokenType.String,
+                        // type: SemanticTokenType.String,
                     }
                 );
             case TokenType.This:
