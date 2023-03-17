@@ -120,37 +120,20 @@ export enum TokenType {
 }
 
 export class Trace {
-    readonly lineStart: number;
-    readonly columnStart: number;
-    readonly lineEnd: number;
-    readonly columnEnd: number;
-    readonly offset: number;
-    readonly length: number;
-
     constructor(
-        lineStart: number,
-        columnStart: number,
-        lineEnd: number,
-        columnEnd: number,
-        offset: number,
-        length: number
-    ) {
-        this.lineStart = lineStart;
-        this.columnStart = columnStart;
-        this.lineEnd = lineEnd;
-        this.columnEnd = columnEnd;
-        this.offset = offset;
-        this.length = length;
-    }
+        readonly lineStart: number,
+        readonly columnStart: number,
+        readonly lineEnd: number,
+        readonly columnEnd: number,
+        readonly offset: number,
+        readonly length: number
+    ) {}
 }
 
 class LexerRule {
     private matches: RegExp[] = [];
-    readonly type: TokenType;
 
-    constructor(type: TokenType) {
-        this.type = type;
-    }
+    constructor(readonly type: TokenType) {}
 
     addString(value: string): LexerRule {
         this.matches.push(new RegExp("^" + regexEscape(value)));
@@ -352,11 +335,7 @@ export class Lexer {
         .addRule(TokenType.Dot)
         .addRule(TokenType.Pointer);
 
-    private readonly text: string;
-
-    constructor(text: string) {
-        this.text = text;
-    }
+    constructor(private readonly text: string) {}
 
     createTokens(): Token[] {
         const tokens: Token[] = [];
@@ -485,13 +464,9 @@ function regexEscape(str: string): string {
 }
 
 class LexerToken {
-    readonly type: TokenType;
-    readonly content: string;
     readonly length: number;
 
-    constructor(type: TokenType, content: string) {
-        this.type = type;
-        this.content = content;
+    constructor(readonly type: TokenType, readonly content: string) {
         this.length = content.length;
     }
 }

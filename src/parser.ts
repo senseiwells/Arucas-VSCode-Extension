@@ -95,23 +95,15 @@ export enum SemanticTokenModifier {
 }
 
 class ParseError extends Error {
-    readonly start: SemanticToken;
-    readonly message: string;
-
-    constructor(start: SemanticToken, message: string) {
+    constructor(readonly start: SemanticToken, readonly message: string) {
         super(message);
-        this.start = start;
-        this.message = message;
     }
 }
 
 class TokenReader {
-    private readonly tokens: Token[];
     private index = 0;
 
-    constructor(tokens: Token[]) {
-        this.tokens = tokens;
-    }
+    constructor(private readonly tokens: Token[]) {}
 
     advance(amount: number = 1) {
         this.index = this.getOffset(amount);
