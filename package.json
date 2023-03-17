@@ -3,12 +3,12 @@
   "displayName": "Arucas Language Extension",
   "description": "Language Support for Arucas",
   "version": "2.0.7",
-	"publisher": "Arucas",
+  "publisher": "Arucas",
   "engines": {
     "vscode": "^1.76.0"
   },
   "categories": [
-		"Programming Languages"
+    "Programming Languages"
   ],
   "activationEvents": [],
   "main": "./out/extension.js",
@@ -35,30 +35,31 @@
     ]
   },
   "__metadata": {
-		"id": "b7d582e4-0efd-439d-a03d-b91e83692d5e",
-		"publisherDisplayName": "Arucas",
-		"publisherId": "a4c8206b-027a-4fad-af30-006b8edbc993",
-		"isPreReleaseVersion": false
-	},
+    "id": "b7d582e4-0efd-439d-a03d-b91e83692d5e",
+    "publisherDisplayName": "Arucas",
+    "publisherId": "a4c8206b-027a-4fad-af30-006b8edbc993",
+    "isPreReleaseVersion": false
+  },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
+    "lint-fix": "eslint src --ext ts --fix",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.76.0",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
-    "@typescript-eslint/eslint-plugin": "^5.53.0",
-    "@typescript-eslint/parser": "^5.53.0",
+    "@types/vscode": "^1.76.0",
+    "@typescript-eslint/eslint-plugin": "^5.55.0",
+    "@typescript-eslint/parser": "^5.55.0",
+    "@vscode/test-electron": "^2.2.3",
     "eslint": "^8.34.0",
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
-    "typescript": "^4.9.5",
-    "@vscode/test-electron": "^2.2.3"
+    "typescript": "^4.9.5"
   }
 }
