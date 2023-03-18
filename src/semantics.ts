@@ -52,7 +52,7 @@ export class ArucasSemanticTokenProvider
                     encodedType,
                     encodedModifers
                 );
-                console.log(`Highlighed token: ${child.token.token.content}, ${type}: ${encodedType}`)
+                // console.log(`Highlighed token: ${child.token.token.content}, ${type}: ${encodedType}`)
             }
             this.visitChildren(child, builder);
         });
@@ -108,7 +108,7 @@ function refreshDiagnostics(document: vscode.TextDocument, diagnostics: vscode.D
     parser.problems().forEach((problem) => {
         const start = problem.start;
         const end = problem.end;
-        console.log(`Highlighed problem: ${problem.message}, ${start.lineStart}:${start.columnStart} to ${end.lineEnd}:${end.columnEnd}`)
+        // console.log(`Highlighed problem: ${problem.message}, ${start.lineStart}:${start.columnStart} to ${end.lineEnd}:${end.columnEnd}`)
         const range = new vscode.Range(start.lineStart, start.columnStart, end.lineEnd, end.columnEnd);
         const diagnostic = new vscode.Diagnostic(range, problem.message);
         problems.push(diagnostic);
