@@ -32,6 +32,13 @@
         "scopeName": "source.arucas",
         "path": "./syntaxes/arucas.tmLanguage.json"
       }
+    ],
+    "semanticTokenScopes": [
+      {
+        "scopes": {
+          "storage": ["storage.type"]
+        }
+      }
     ]
   },
   "__metadata": {

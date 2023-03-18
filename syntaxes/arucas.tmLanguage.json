@@ -374,7 +374,15 @@
                 },
                 {
                     "match": "\\b(this|super)\\b",
-                    "name": "keyword.control"
+                    "name": "keyword.other.arucas"
+                },
+                {
+                    "match": "([a-zA-Z]\\w*)\\s*(?=\\()",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.function"
+                        }
+                    }
                 },
                 {
                     "match": "0[xX][0-9a-fA-F]+",
@@ -439,14 +447,6 @@
                             "include": "#code"
                         }
                     ]
-                },
-                {
-                    "match": "([a-zA-Z]\\w*)\\s*(?=\\()",
-                    "captures": {
-                        "1": {
-                            "name": "entity.name.function"
-                        }
-                    }
                 }
             ]
         },

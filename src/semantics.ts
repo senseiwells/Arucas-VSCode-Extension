@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { Lexer } from "./lexer";
 import { Node } from "./node";
-import { Parser, SemanticTokenType } from "./parser";
+import { Parser, SemanticTokenModifier, SemanticTokenType } from "./parser";
 
 const TOKEN_TYPES = new Map<string, number>();
 const TOKEN_MODIFIERS = new Map<string, number>();
@@ -13,7 +13,7 @@ export const legend = (() => {
     }
 
     const tokenModifiers: string[] = [];
-    for (const [, v] of Object.entries(SemanticTokenType)) {
+    for (const [, v] of Object.entries(SemanticTokenModifier)) {
         tokenModifiers.push(v);
     }
 
@@ -31,8 +31,8 @@ export class ArucasSemanticTokenProvider
         const tokens = new Lexer(document.getText()).createTokens();
         const parser = new Parser(tokens);
         const statements = parser.parse();
-        // const problems = parser.problems();
-        console.log(statements);
+        const problems = parser.problems();
+        console.log(problems);
 
         const builder = new vscode.SemanticTokensBuilder();
         this.visitChildren(statements, builder);
@@ -42,17 +42,19 @@ export class ArucasSemanticTokenProvider
 
     private visitChildren(node: Node, builder: vscode.SemanticTokensBuilder) {
         node.children().forEach((child) => {
-            console.log(child.token.token.content);
             const tk = child.token;
             const type = tk.type;
             if (type) {
+                const encodedType = this.encodeTokenType(type);
+                const encodedModifers = this.encodeTokenModifiers(tk.modifiers);
                 builder.push(
                     tk.token.trace.lineStart,
                     tk.token.trace.columnStart,
                     tk.token.trace.length,
-                    this.encodeTokenType(type),
-                    this.encodeTokenModifiers(tk.modifiers)
+                    encodedType,
+                    encodedModifers
                 );
+                console.log(`Highlighed token: ${child.token.token.content}, ${type}: ${encodedType}`)
             }
             this.visitChildren(child, builder);
         });
@@ -60,7 +62,7 @@ export class ArucasSemanticTokenProvider
 
     private encodeTokenType(tokenType: string): number {
         const mod = TOKEN_TYPES.get(tokenType);
-        return mod ? mod : TOKEN_TYPES.size + 2;
+        return mod !== undefined ? mod : TOKEN_TYPES.size + 2;
     }
 
     private encodeTokenModifiers(strTokenModifiers?: string[]): number {

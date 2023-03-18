@@ -13,6 +13,8 @@ export function activate(context: vscode.ExtensionContext) {
             legend
         )
     );
+
+    console.log(legend);
 }
 
 export function deactivate() {

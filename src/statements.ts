@@ -106,7 +106,7 @@ export class Class extends Statement {
 export class Constructor extends Statement {
     constructor(
         readonly parameters: Parameter[],
-        readonly arbitrary: PossibleModifier,
+        readonly arbitrary: boolean,
         readonly isPrivate: PossibleModifier,
         readonly delegate: ConstructorDelegate,
         readonly body: Statement,
@@ -121,9 +121,6 @@ export class Constructor extends Statement {
 
     children(): Node[] {
         const children: Node[] = [...this.parameters, this.delegate, this.body];
-        if (this.arbitrary !== null) {
-            children.push(new Modifier(this.arbitrary));
-        }
         if (this.isPrivate !== null) {
             children.push(new Modifier(this.isPrivate));
         }
@@ -214,7 +211,7 @@ export class Function extends Statement {
     constructor(
         readonly name: Id,
         readonly isClass: boolean,
-        readonly isPrivate: boolean,
+        readonly isPrivate: PossibleModifier,
         readonly parameters: Parameter[],
         readonly arbitrary: boolean,
         readonly returns: Type[],
@@ -229,7 +226,11 @@ export class Function extends Statement {
     }
 
     children(): Node[] {
-        return [this.name, ...this.parameters, ...this.returns, this.body];
+        const children: Node[] = [this.name, ...this.parameters, ...this.returns, this.body];
+        if (this.isPrivate) {
+            children.push(new Modifier(this.isPrivate));
+        }
+        return children;
     }
 }
 
