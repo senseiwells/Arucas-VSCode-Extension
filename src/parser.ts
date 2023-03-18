@@ -221,12 +221,12 @@ export class Parser extends TokenReader {
             "Expected variable name"
         );
         const types = this.typeHint();
-        this.check(
+        this.checkSoft(
             TokenType.AssignOperator,
             "Expected '=' after variable name"
         );
         const expr = this.expression();
-        this.check(
+        this.checkSoft(
             TokenType.Semicolon,
             "Expected ';' after local variable declaration"
         );
@@ -259,7 +259,7 @@ export class Parser extends TokenReader {
             } while (this.isMatch(TokenType.Comma));
         }
         const type = superclasses.length ? "super class" : "class";
-        this.check(
+        this.checkSoft(
             TokenType.LeftCurlyBracket,
             `Expected '{' after ${type} name`
         );
@@ -297,7 +297,7 @@ export class Parser extends TokenReader {
                 );
             } while (this.isMatch(TokenType.Comma));
         }
-        this.check(TokenType.LeftCurlyBracket, "Expected '{' after enum name");
+        this.checkSoft(TokenType.LeftCurlyBracket, "Expected '{' after enum name");
         const enums: EnumMember[] = [];
         while (true) {
             if (this.peekType() !== TokenType.Identifier) {
@@ -312,13 +312,13 @@ export class Parser extends TokenReader {
                 ]
             );
             if (enums.find((v) => v.name === member.token.content)) {
-                this.error(
+                this.softError(
                     `Enum cannot have a duplicate constant: '${member.token.content}'`,
                     member.token
                 );
             }
             if (member.token.content === "type") {
-                this.error("Enum cannot define constant 'type'", member.token);
+                this.softError("Enum cannot define constant 'type'", member.token);
             }
 
             let args: Expression[] = [];
@@ -328,7 +328,7 @@ export class Parser extends TokenReader {
                         ? []
                         : this.expressions();
                 console.log(args);
-                this.check(
+                this.checkSoft(
                     TokenType.RightBracket,
                     "Expected ')' after enum arguments"
                 );
@@ -338,7 +338,7 @@ export class Parser extends TokenReader {
         }
         let body: Statement;
         if (!this.isMatch(TokenType.Semicolon)) {
-            this.check(
+            this.checkSoft(
                 TokenType.RightCurlyBracket,
                 "Expected '}' or ';' after enums"
             );
@@ -366,7 +366,7 @@ export class Parser extends TokenReader {
             [SemanticTokenModifier.Declaration],
             "Expected interface name"
         );
-        this.check(
+        this.checkSoft(
             TokenType.LeftCurlyBracket,
             "Expected '{' after interface name"
         );
@@ -384,7 +384,7 @@ export class Parser extends TokenReader {
                 [SemanticTokenModifier.Declaration],
                 "Expected function blueprint in interface"
             );
-            this.check(
+            this.checkSoft(
                 TokenType.LeftBracket,
                 "Expected '(' after function name"
             );
@@ -455,23 +455,24 @@ export class Parser extends TokenReader {
                     );
                     const targetted = isStatic ? staticFields : fields;
                     if (targetted.find((v) => v.name.id === id.token.content)) {
-                        this.error("Class cannot contain duplicate field name");
+                        this.softError("Class cannot contain duplicate field name", id.token);
                     }
                     if (isStatic && id.token.content === "type") {
-                        this.error("Class cannot define static field 'type'");
+                        this.softError("Class cannot define static field 'type'", id.token);
                     }
                     const hint = this.typeHint();
                     let expr: Expression;
                     if (this.isMatch(TokenType.AssignOperator)) {
                         expr = this.expression();
-                        this.check(
+                        this.checkSoft(
                             TokenType.Semicolon,
                             "Expected ';' after field assignment"
                         );
                     } else if (this.isMatch(TokenType.Semicolon)) {
                         expr = new VoidExpr({ token: this.peek(-1) });
                     } else {
-                        this.error(
+                        expr = new VoidExpr({ token: this.peek(-1) });
+                        this.softError(
                             "Expected ';' or assignment after field declaration"
                         );
                     }
@@ -482,7 +483,10 @@ export class Parser extends TokenReader {
                             isPrivate,
                             expr,
                             hint,
-                            { token: current, type: SemanticTokenType.KeywordOther }
+                            { 
+                                token: current, 
+                                type: SemanticTokenType.KeywordOther 
+                            }
                         )
                     );
                     break;
@@ -494,31 +498,33 @@ export class Parser extends TokenReader {
                         [SemanticTokenModifier.Declaration, ...modifiers]
                     );
                     if (isStatic) {
-                        this.error("Class constructor cannot be static");
+                        this.softError("Class constructor cannot be static", id.token);
                     }
                     if (readonly) {
-                        this.error("Class constructor cannot be readonly");
+                        this.softError("Class constructor cannot be readonly", id.token);
                     }
                     if (id.token.content !== name) {
-                        this.error("Constructor must have the same name as the class");
+                        this.softError("Constructor must have the same name as the class", id.token);
                     }
 
-                    this.check(TokenType.LeftBracket, "Expected '(' after constructor");
+                    this.checkSoft(TokenType.LeftBracket, "Expected '(' after constructor");
                     const [parameters, varargs] = this.functionParameters();
                     let delegate: ConstructorDelegate;
                     if (this.isMatch(TokenType.Colon)) {
                         const next = this.peek();
                         if (next.type !== TokenType.This && next.type !== TokenType.Super) {
-                            this.error("Expected 'this' or 'super' after constructor call");
+                            this.softError("Expected 'this' or 'super' after constructor call");
+                            delegate = new ConstructorDelegate([], { token: this.peek() });
+                        } else {
+                            this.advance();
+                            this.checkSoft(TokenType.LeftBracket, `Expected '(' after ${next.content}`);
+                            const expressions = this.peekType() === TokenType.RightBracket ? [] : this.expressions();
+                            this.checkSoft(TokenType.RightBracket, "Expected closing ')'");
+                            delegate = new ConstructorDelegate(expressions, {
+                                token: next,
+                                type: SemanticTokenType.KeywordOther
+                            })
                         }
-                        this.advance();
-                        this.check(TokenType.LeftBracket, `Expected '(' after ${next.content}`);
-                        const expressions = this.peekType() === TokenType.RightBracket ? [] : this.expressions();
-                        this.check(TokenType.RightBracket, "Expected closing ')'");
-                        delegate = new ConstructorDelegate(expressions, {
-                            token: next,
-                            type: SemanticTokenType.KeywordOther
-                        })
                     } else {
                         delegate = new ConstructorDelegate([], { token: this.peek() });
                     }
@@ -529,7 +535,7 @@ export class Parser extends TokenReader {
                 }
                 case TokenType.Fun: {
                     if (readonly) {
-                        this.error("Class function cannot be readonly");
+                        this.softError("Class function cannot be readonly", current);
                     }
                     (isStatic ? staticMethods : methods).push(this.functionDeclaration(true, isPrivate, ...modifiers));
                     break;
@@ -537,30 +543,30 @@ export class Parser extends TokenReader {
                 case TokenType.Operator: {
                     const operator = this.checkAsSemantic(TokenType.Operator, SemanticTokenType.KeywordOther);
                     if (isStatic) {
-                        this.error("Operator method cannot be static");
+                        this.softError("Operator method cannot be static", current);
                     }
                     if (readonly) {
-                        this.error("Operator method cannot be readonly");
+                        this.softError("Operator method cannot be readonly", current);
                     }
                     if (isPrivate) {
-                        this.error("Operator method cannot be private");
+                        this.softError("Operator method cannot be private", current);
                     }
 
                     const next = this.advance();
                     let typeAsString: string;
                     if (next.type === TokenType.LeftSquareBracket) {
-                        this.check(TokenType.RightSquareBracket, "Expected closing ']'");
+                        this.checkSoft(TokenType.RightSquareBracket, "Expected closing ']'");
                         typeAsString = "[]";
                     } else {
                         typeAsString = next.type.toString();
                     }
 
-                    this.check(TokenType.LeftBracket, "Expected '(' after operator");
+                    this.checkSoft(TokenType.LeftBracket, "Expected '(' after operator");
                     const [parameters, varargs] = this.functionParameters();
                     const count = varargs ? -1 : parameters.length;
 
                     if (!this.isOverridable(count, next.type)) {
-                        this.error(`No such operator '${typeAsString}' with ${count} parameters`);
+                        this.softError(`No such operator '${typeAsString}' with ${count} parameters`, next);
                     }
 
                     const returns = this.typeHint();
@@ -580,15 +586,14 @@ export class Parser extends TokenReader {
                     break;
                 }
                 case TokenType.LeftCurlyBracket: {
-                    this.advance();
                     if (!isStatic) {
-                        this.error("Class initializer must be preceded by 'static'");
+                        this.softError("Class initializer must be preceded by 'static'", current);
                     }
                     if (readonly) {
-                        this.error("Class initializer cannot be readonly")
+                        this.softError("Class initializer cannot be readonly", current)
                     }
                     if (isPrivate) {
-                        this.error("Class initializer cannot be private")
+                        this.softError("Class initializer cannot be private", current)
                     }
                     initialisers.push(this.scopedStatement());
                     break;
@@ -631,7 +636,7 @@ export class Parser extends TokenReader {
             modifiers,
             "Expected function name"
         );
-        this.check(TokenType.LeftBracket, "Expeced '(' after function name");
+        this.checkSoft(TokenType.LeftBracket, "Expeced '(' after function name");
 
         const [parameters, varargs] = this.functionParameters();
         const returns = this.typeHint();
@@ -666,7 +671,7 @@ export class Parser extends TokenReader {
                 );
 
                 if (this.isMatch(TokenType.Arbitrary)) {
-                    this.check(TokenType.RightBracket);
+                    this.checkSoft(TokenType.RightBracket);
                     parameters.push(new Parameter(id.token.content, [], id));
                     isVarargs = true;
                     return;
@@ -770,9 +775,9 @@ export class Parser extends TokenReader {
             TokenType.If,
             SemanticTokenType.Keyword
         );
-        this.check(TokenType.LeftBracket, "Expected '(' after 'if'");
+        this.checkSoft(TokenType.LeftBracket, "Expected '(' after 'if'");
         const condition = this.expression();
-        this.check(TokenType.RightBracket, "Expected ')' after if condition");
+        this.checkSoft(TokenType.RightBracket, "Expected ')' after if condition");
         const body = this.scopedStatement();
         const next = this.peek();
         let otherwise: Else;
@@ -793,13 +798,13 @@ export class Parser extends TokenReader {
             TokenType.Switch,
             SemanticTokenType.Keyword
         );
-        this.check(TokenType.LeftBracket, "Expected '(' after 'switch'");
+        this.checkSoft(TokenType.LeftBracket, "Expected '(' after 'switch'");
         const condition = this.expression();
-        this.check(
+        this.checkSoft(
             TokenType.RightBracket,
             "Expected ')' after switch condition"
         );
-        this.check(
+        this.checkSoft(
             TokenType.LeftCurlyBracket,
             "Expceted '{' after switch condition"
         );
@@ -813,11 +818,12 @@ export class Parser extends TokenReader {
             if (current.type === TokenType.Default) {
                 this.advance();
                 if (def !== null) {
-                    this.error(
-                        "Switch statement can only have one default case"
+                    this.softError(
+                        "Switch statement can only have one default case",
+                        current
                     );
                 }
-                this.check(TokenType.Pointer, "Expected '->' after 'default'");
+                this.checkSoft(TokenType.Pointer, "Expected '->' after 'default'");
                 def = this.scopedStatement();
                 continue;
             }
@@ -828,7 +834,7 @@ export class Parser extends TokenReader {
                 "Expected 'case' or 'default' in switch body"
             );
             const subcases = this.expressions();
-            this.check(
+            this.checkSoft(
                 TokenType.Pointer,
                 "Expected '->' after 'case' expressions"
             );
@@ -845,9 +851,9 @@ export class Parser extends TokenReader {
             TokenType.While,
             SemanticTokenType.Keyword
         );
-        this.check(TokenType.LeftBracket, "Expected '(' after 'while'");
+        this.checkSoft(TokenType.LeftBracket, "Expected '(' after 'while'");
         const condition = this.expression();
-        this.check(
+        this.checkSoft(
             TokenType.RightBracket,
             "Expected ')' after while condition"
         );
@@ -860,7 +866,7 @@ export class Parser extends TokenReader {
             TokenType.For,
             SemanticTokenType.Keyword
         );
-        this.check(TokenType.LeftBracket, "Expected '(' after 'for'");
+        this.checkSoft(TokenType.LeftBracket, "Expected '(' after 'for'");
         let initial: Statement;
         switch (this.peekType()) {
             case TokenType.Local:
@@ -876,12 +882,12 @@ export class Parser extends TokenReader {
             this.peekType() === TokenType.Semicolon
                 ? new Literal(true, { token: this.advance() })
                 : this.expression();
-        this.check(TokenType.Semicolon, "Expected ';' after for condition");
+        this.checkSoft(TokenType.Semicolon, "Expected ';' after for condition");
         const end =
             this.peekType() === TokenType.RightBracket
                 ? new VoidExpr({ token: this.advance() })
                 : this.expression();
-        this.check(TokenType.RightBracket, "Expected ')' after for expression");
+        this.checkSoft(TokenType.RightBracket, "Expected ')' after for expression");
         const body = this.statement();
         return new For(initial, condition, end, body, fo);
     }
@@ -891,19 +897,19 @@ export class Parser extends TokenReader {
             TokenType.Foreach,
             SemanticTokenType.Keyword
         );
-        this.check(TokenType.LeftBracket, "Expected '(' after 'foreach'");
+        this.checkSoft(TokenType.LeftBracket, "Expected '(' after 'foreach'");
         const id = this.checkAsSemantic(
             TokenType.Identifier,
             SemanticTokenType.Variable,
             [SemanticTokenModifier.Declaration],
             "Expected foreach variable name after '('"
         );
-        this.check(
+        this.checkSoft(
             TokenType.Colon,
             "Expected ':' between variable name and iterator expression"
         );
         const iter = this.expression();
-        this.check(
+        this.checkSoft(
             TokenType.RightBracket,
             "Expected ')' after iterator expression"
         );
@@ -921,7 +927,7 @@ export class Parser extends TokenReader {
         const current = this.peek();
         if (current.type === TokenType.Catch) {
             this.advance();
-            this.check(TokenType.LeftBracket, "Expected '(' after 'catch'");
+            this.checkSoft(TokenType.LeftBracket, "Expected '(' after 'catch'");
             const id = this.checkAsSemantic(
                 TokenType.Identifier,
                 SemanticTokenType.Variable,
@@ -933,7 +939,7 @@ export class Parser extends TokenReader {
                 this.typeHint(),
                 id
             );
-            this.check(
+            this.checkSoft(
                 TokenType.RightBracket,
                 "Expected ')' after catch parameter"
             );
@@ -963,7 +969,7 @@ export class Parser extends TokenReader {
             SemanticTokenType.Keyword
         );
         const expression = this.expression();
-        this.check(TokenType.Semicolon, "Expected ';' after throw expression");
+        this.checkSoft(TokenType.Semicolon, "Expected ';' after throw expression");
         return new Throw(expression, thr);
     }
 
@@ -976,7 +982,7 @@ export class Parser extends TokenReader {
             return new Return(new VoidExpr({ token: this.peek(-1) }), ret);
         }
         const expression = this.expression();
-        this.check(TokenType.Semicolon, "Expected ';' after return expression");
+        this.checkSoft(TokenType.Semicolon, "Expected ';' after return expression");
         return new Return(expression, ret);
     }
 
@@ -985,7 +991,7 @@ export class Parser extends TokenReader {
             TokenType.Continue,
             SemanticTokenType.Keyword
         );
-        this.check(TokenType.Semicolon, "Expected ';' after 'continue'");
+        this.checkSoft(TokenType.Semicolon, "Expected ';' after 'continue'");
         return new Continue(cont);
     }
 
@@ -994,7 +1000,7 @@ export class Parser extends TokenReader {
             TokenType.Break,
             SemanticTokenType.Keyword
         );
-        this.check(TokenType.Semicolon, "Expected ';' after 'break'");
+        this.checkSoft(TokenType.Semicolon, "Expected ';' after 'break'");
         return new Break(brek);
     }
 
@@ -1033,7 +1039,7 @@ export class Parser extends TokenReader {
             ).content;
         }
         const last = this.peek().trace;
-        this.check(TokenType.Semicolon, "Expected ';' after module name");
+        this.checkSoft(TokenType.Semicolon, "Expected ';' after module name");
         const idToken: SemanticToken = {
             token: new Token(
                 TokenType.Identifier,
@@ -1061,7 +1067,7 @@ export class Parser extends TokenReader {
         const expression = this.pushUnpack(true, () => {
             return this.expression();
         });
-        this.check(TokenType.Semicolon, "Expected ';' after expression");
+        this.checkSoft(TokenType.Semicolon, "Expected ';' after expression");
         return new ExpressionStmt(expression, { token: start });
     }
 
@@ -1323,7 +1329,7 @@ export class Parser extends TokenReader {
                     let args: Expression[] = [];
                     if (!this.isMatch(TokenType.RightBracket)) {
                         args = this.expressions();
-                        this.check(
+                        this.checkSoft(
                             TokenType.RightBracket,
                             "Expected ')' after call arguments"
                         );
@@ -1336,7 +1342,7 @@ export class Parser extends TokenReader {
                 case TokenType.LeftSquareBracket: {
                     this.advance();
                     const index = this.expression();
-                    this.check(
+                    this.checkSoft(
                         TokenType.RightSquareBracket,
                         "Expected '[' after index"
                     );
@@ -1415,7 +1421,7 @@ export class Parser extends TokenReader {
                     current.content.substring(1, current.content.length - 1),
                     {
                         token: current,
-                        // type: SemanticTokenType.String,
+                        type: SemanticTokenType.String,
                     }
                 );
             case TokenType.This:
@@ -1437,7 +1443,7 @@ export class Parser extends TokenReader {
             case TokenType.LeftBracket: {
                 this.advance();
                 const expression = this.expression();
-                this.check(
+                this.checkSoft(
                     TokenType.RightBracket,
                     "Expected ')' after expression"
                 );
@@ -1477,7 +1483,7 @@ export class Parser extends TokenReader {
         const start = this.checkAsSemantic(TokenType.LeftSquareBracket);
         if (!this.isMatch(TokenType.RightSquareBracket)) {
             const expressions = this.expressions();
-            this.check(
+            this.checkSoft(
                 TokenType.RightSquareBracket,
                 "Expected closing ']' after list expressions"
             );
@@ -1493,13 +1499,13 @@ export class Parser extends TokenReader {
             if (!this.isMatch(TokenType.RightCurlyBracket)) {
                 do {
                     const key = this.expression();
-                    this.check(
+                    this.checkSoft(
                         TokenType.Colon,
                         "Expected ':' between key and value in a map"
                     );
                     map.set(key, this.expression());
                 } while (this.isMatch(TokenType.Comma));
-                this.check(
+                this.checkSoft(
                     TokenType.RightCurlyBracket,
                     "Expected closing '}' after map expression"
                 );
@@ -1513,7 +1519,7 @@ export class Parser extends TokenReader {
             TokenType.Fun,
             SemanticTokenType.KeywordOther
         );
-        this.check(TokenType.LeftBracket, "Expected '(' after 'fun'");
+        this.checkSoft(TokenType.LeftBracket, "Expected '(' after 'fun'");
         const [parameters, varargs] = this.functionParameters();
         const returns = this.typeHint();
         let body: Statement;
@@ -1629,12 +1635,35 @@ export class Parser extends TokenReader {
         this.advance();
         return current;
     }
+    
+    checkSoft(type: TokenType, message?: string): void {
+        const current = this.peek();
+        if (current.type !== type) {
+            this.softError(
+                message ??
+                    `Unexpected token ${current.content}, expected type: ${type}`,
+                current
+            );
+        } else {
+            this.advance();
+        }
+    }
 
     error(message?: string, token: Token = this.peek()): never {
         throw new ParseError(
             { token: token },
             message ?? `Unexpected token ${token.content}`
         );
+    }
+
+    softError(message: string, start: Token = this.peek(), end: Token = start): void {
+        this.errors.push(
+            new Problem(
+                start.trace,
+                end.trace,
+                message 
+            )
+        )
     }
 
     errorSkip(error: ParseError) {
@@ -1665,8 +1694,8 @@ export class Parser extends TokenReader {
         } finally {
             this.errors.push(
                 new Problem(
-                    error.start,
-                    { token: this.peek(-1) },
+                    error.start.token.trace,
+                    this.peek(-1).trace,
                     error.message
                 )
             );

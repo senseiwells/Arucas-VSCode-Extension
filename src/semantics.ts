@@ -31,8 +31,6 @@ export class ArucasSemanticTokenProvider
         const tokens = new Lexer(document.getText()).createTokens();
         const parser = new Parser(tokens);
         const statements = parser.parse();
-        const problems = parser.problems();
-        console.log(problems);
 
         const builder = new vscode.SemanticTokensBuilder();
         this.visitChildren(statements, builder);
@@ -81,4 +79,39 @@ export class ArucasSemanticTokenProvider
         }
         return result;
     }
+}
+
+export function updateDiagnostics(context: vscode.ExtensionContext, diagnostics: vscode.DiagnosticCollection) {
+    if (vscode.window.activeTextEditor) {
+        refreshDiagnostics(vscode.window.activeTextEditor.document, diagnostics);
+    }
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor((editor) => {
+            if (editor) {
+                refreshDiagnostics(editor.document, diagnostics);
+            }
+        })
+    )
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument((event) => refreshDiagnostics(event.document, diagnostics))
+    )
+    context.subscriptions.push(
+        vscode.workspace.onDidCloseTextDocument((document) => diagnostics.delete(document.uri))
+    )
+}
+
+function refreshDiagnostics(document: vscode.TextDocument, diagnostics: vscode.DiagnosticCollection) {
+    const tokens = new Lexer(document.getText()).createTokens();
+    const parser = new Parser(tokens);
+    parser.parse();
+    const problems: vscode.Diagnostic[] = [];
+    parser.problems().forEach((problem) => {
+        const start = problem.start;
+        const end = problem.end;
+        console.log(`Highlighed problem: ${problem.message}, ${start.lineStart}:${start.columnStart} to ${end.lineEnd}:${end.columnEnd}`)
+        const range = new vscode.Range(start.lineStart, start.columnStart, end.lineEnd, end.columnEnd);
+        const diagnostic = new vscode.Diagnostic(range, problem.message);
+        problems.push(diagnostic);
+    });
+    diagnostics.set(document.uri, problems);
 }

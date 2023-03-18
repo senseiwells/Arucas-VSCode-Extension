@@ -1,4 +1,5 @@
 import { Expression } from "./expressions";
+import { Trace } from "./lexer";
 import { SemanticToken } from "./parser";
 import { Statement } from "./statements";
 
@@ -147,12 +148,10 @@ export class InterfaceMethod extends Node {
     }
 }
 
-export class Problem extends Node {
+export class Problem {
     constructor(
-        readonly start: SemanticToken,
-        readonly end: SemanticToken,
+        readonly start: Trace,
+        readonly end: Trace,
         readonly message: string
-    ) {
-        super(start);
-    }
+    ) {}
 }

@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { ArucasSemanticTokenProvider, legend } from "./semantics";
+import { ArucasSemanticTokenProvider, legend, updateDiagnostics } from "./semantics";
 
 export function activate(context: vscode.ExtensionContext) {
     console.log(
@@ -14,7 +14,9 @@ export function activate(context: vscode.ExtensionContext) {
         )
     );
 
-    console.log(legend);
+    const diagnostics = vscode.languages.createDiagnosticCollection("arucas");
+    context.subscriptions.push(diagnostics);
+    updateDiagnostics(context, diagnostics);
 }
 
 export function deactivate() {

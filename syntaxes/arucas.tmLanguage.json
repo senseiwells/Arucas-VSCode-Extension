@@ -413,8 +413,7 @@
                     "name": "string.quoted.single",
                     "patterns": [
                         {
-                            "match": "\\\\.",
-                            "name": "constant.character.escape.arucas"
+                            "match": "\\\\."
                         }
                     ]
                 },
