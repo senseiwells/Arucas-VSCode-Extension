@@ -50,7 +50,7 @@ import {
     ExpressionStmt,
     For,
     Foreach,
-    Function,
+    FunctionStmt,
     If,
     Import,
     Interface,
@@ -417,9 +417,9 @@ export class Parser extends TokenReader {
         const staticFields: Variable[] = [];
         const initialisers: Statement[] = [];
         const constructors: Constructor[] = [];
-        const methods: Function[] = [];
-        const staticMethods: Function[] = [];
-        const operators: Function[] = [];
+        const methods: FunctionStmt[] = [];
+        const staticMethods: FunctionStmt[] = [];
+        const operators: FunctionStmt[] = [];
         while (!this.isMatch(TokenType.RightCurlyBracket)) {
             let isPrivate: PossibleModifier = null;
             let isStatic: PossibleModifier = null;
@@ -577,7 +577,7 @@ export class Parser extends TokenReader {
                     const returns = this.typeHint();
                     const body = this.statement();
 
-                    const fun = new Function(
+                    const fun = new FunctionStmt(
                         new Id(typeAsString, { token: next }), 
                         true, 
                         isPrivate, 
@@ -627,7 +627,7 @@ export class Parser extends TokenReader {
         isClass: boolean,
         isPrivate: PossibleModifier = null,
         ...modifiers: SemanticTokenModifier[]
-    ): Function {
+    ): FunctionStmt {
         if (!modifiers.includes(SemanticTokenModifier.Declaration)) {
             modifiers.push(SemanticTokenModifier.Declaration);
         }
@@ -647,7 +647,7 @@ export class Parser extends TokenReader {
         const returns = this.typeHint();
         const body = this.statement();
 
-        return new Function(
+        return new FunctionStmt(
             new Id(id.token.content, id),
             isClass,
             isPrivate,

@@ -28,7 +28,7 @@ export interface StatementVisitor<T> {
     visitExpression(expression: ExpressionStmt): T;
     visitForeach(foreach: Foreach): T;
     visitFor(forr: For): T;
-    visitFunction(func: Function): T;
+    visitFunction(func: FunctionStmt): T;
     visitIf(ifs: If): T;
     visitImport(imported: Import): T;
     visitInterface(interfaced: Interface): T;
@@ -59,9 +59,9 @@ export class ClassBody extends Statement {
         readonly staticFields: Variable[],
         readonly initialisers: Statement[],
         readonly constructors: Constructor[],
-        readonly methods: Function[],
-        readonly staticMethods: Function[],
-        readonly operators: Function[],
+        readonly methods: FunctionStmt[],
+        readonly staticMethods: FunctionStmt[],
+        readonly operators: FunctionStmt[],
         token: SemanticToken
     ) {
         super(token);
@@ -207,7 +207,7 @@ export class For extends Statement {
     }
 }
 
-export class Function extends Statement {
+export class FunctionStmt extends Statement {
     constructor(
         readonly name: Id,
         readonly isClass: boolean,
