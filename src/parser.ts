@@ -552,7 +552,8 @@ export class Parser extends TokenReader {
                         this.softError("Operator method cannot be private", current);
                     }
 
-                    const next = this.advance();
+                    const next = this.peek();
+                    this.advance();
                     let typeAsString: string;
                     if (next.type === TokenType.LeftSquareBracket) {
                         this.checkSoft(TokenType.RightSquareBracket, "Expected closing ']'");
@@ -1372,6 +1373,7 @@ export class Parser extends TokenReader {
                         TokenType.Plus,
                         new Literal(1, { token: this.peek() })
                     );
+                    this.advance();
                     break;
                 case TokenType.Decrement:
                     expression = this.binaryAssignment(
@@ -1379,6 +1381,7 @@ export class Parser extends TokenReader {
                         TokenType.Minus,
                         new Literal(1, { token: this.peek() })
                     );
+                    this.advance();
                     break;
                 default:
                     repeat = false;
@@ -1569,7 +1572,7 @@ export class Parser extends TokenReader {
     }
 
     isOverridable(parameters: number, type: TokenType) {
-        if (parameters === 1) {
+        if (parameters === 0) {
             switch (type) {
                 case TokenType.Not:
                 case TokenType.Plus:
@@ -1578,7 +1581,7 @@ export class Parser extends TokenReader {
             }
             return false;
         }
-        if (parameters === 2) {
+        if (parameters === 1) {
             switch (type) {
                 case TokenType.Plus:
                 case TokenType.Minus:
@@ -1603,7 +1606,7 @@ export class Parser extends TokenReader {
             }   
             return false;
         }
-        if (parameters === 3) {
+        if (parameters === 2) {
             return type === TokenType.LeftSquareBracket;
         }
         return false;
