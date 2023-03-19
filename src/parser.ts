@@ -395,6 +395,10 @@ export class Parser extends TokenReader {
                 parameters = [];
             }
             const hints = this.typeHint();
+            this.checkSoft(
+                TokenType.Semicolon,
+                "Expected ';' after interface function"
+            )
             functions.push(
                 new InterfaceMethod(
                     new Id(funId.token.content, funId),
@@ -559,7 +563,7 @@ export class Parser extends TokenReader {
                         this.checkSoft(TokenType.RightSquareBracket, "Expected closing ']'");
                         typeAsString = "[]";
                     } else {
-                        typeAsString = next.type.toString();
+                        typeAsString = next.content;
                     }
 
                     this.checkSoft(TokenType.LeftBracket, "Expected '(' after operator");
