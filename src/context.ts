@@ -1,23 +1,31 @@
 import * as vscode from "vscode";
-import { InterfaceMethod, Parameter, Type, Variable } from "./node";
+import { InterfaceMethod, Type, Variable } from "./node";
 import { FunctionStmt } from "./statements";
+
+export interface ParameterData {
+    name: string,
+    types: string[]
+}
 
 export interface VariableData {
     name: string,
+    desc?: string,
     isPrivate: boolean,
-    types?: Type[],
+    types?: string[],
 }
 
 export interface FunctionData {
     name: string,
-    parameters: Parameter[],
-    returns: Type[],
+    desc?: string,
+    parameters: ParameterData[],
+    returns: string[],
     isPrivate: boolean,
     varargs: boolean
 }
 
 export interface ClassData {
     name: string,
+    desc?: string,
     superclasses: Type[],
     fields: VariableData[],
     staticFields: VariableData[],
@@ -65,7 +73,7 @@ export class ContextScope {
             this.variables.set(name, {
                 name: name,
                 isPrivate: false,
-                types: types
+                types: types.map((t) => t.name)
             })
         }
     }
@@ -74,8 +82,8 @@ export class ContextScope {
         const functions = this.functions.get(func.name.id) ?? [];
         functions.push({
             name: func.name.id,
-            parameters: func.parameters,
-            returns: func.returns,
+            parameters: func.parameters.map((p) => ({ name: p.name, types: p.types.map((t) => t.name) })),
+            returns: func.returns.map((t) => t.name),
             isPrivate: false,
             varargs: func.arbitrary
         });
@@ -98,8 +106,9 @@ export class ContextScope {
         const data = this.getClassOrEnumData(className);
         data.fields.push({
             name: field.name.id,
+            desc: "",
             isPrivate: !!field.isPrivate,
-            types: field.types
+            types: field.types.map((t) => t.name)
         });
     }
 
@@ -108,7 +117,7 @@ export class ContextScope {
         data.staticFields.push({
             name: field.name.id,
             isPrivate: !!field.isPrivate,
-            types: field.types
+            types: field.types.map((t) => t.name)
         });
     }
 
@@ -116,8 +125,8 @@ export class ContextScope {
         const data = this.getClassOrEnumData(className);
         data.methods.push({
             name: func.name.id,
-            parameters: func.parameters,
-            returns: func.returns,
+            parameters: func.parameters.map((p) => ({ name: p.name, types: p.types.map((t) => t.name) })),
+            returns: func.returns.map((t) => t.name),
             isPrivate: !!func.isPrivate,
             varargs: func.arbitrary
         });
@@ -127,8 +136,8 @@ export class ContextScope {
         const data = this.getClassOrEnumData(className);
         data.staticMethods.push({
             name: func.name.id,
-            parameters: func.parameters,
-            returns: func.returns,
+            parameters: func.parameters.map((p) => ({ name: p.name, types: p.types.map((t) => t.name) })),
+            returns: func.returns.map((t) => t.name),
             isPrivate: !!func.isPrivate,
             varargs: func.arbitrary
         });
@@ -137,8 +146,8 @@ export class ContextScope {
     addInterfaceMethod(interfaceName: string, func: InterfaceMethod) {
         this.getInterface(interfaceName).methods.push({
             name: func.name.id,
-            parameters: func.parameters,
-            returns: func.returns,
+            parameters: func.parameters.map((p) => ({ name: p.name, types: p.types.map((t) => t.name) })),
+            returns: func.returns.map((t) => t.name),
             isPrivate: false,
             varargs: false
         });
@@ -297,7 +306,7 @@ export class ContextScope {
         return clazz;
     }
 
-    private getVariableType(name: string): Type[] | undefined {
+    private getVariableType(name: string): string[] | undefined {
         const variable = this.variables.get(name);
         if (variable?.types) {
             return variable.types

@@ -1,11 +1,14 @@
 import * as vscode from "vscode";
 import { ArucasSemanticTokenProvider, legend, updateDiagnostics } from "./semantics";
 import { ArucasCompletionProvider } from "./completions";
+import { BuiltIns } from "./builtins";
 
 export function activate(context: vscode.ExtensionContext) {
     console.log(
         'Congratulations, your extension "arucas-language-extension" is now active!!'
     );
+
+    BuiltIns.noop();
 
     context.subscriptions.push(
         vscode.languages.registerDocumentSemanticTokensProvider(
