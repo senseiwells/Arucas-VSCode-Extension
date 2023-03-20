@@ -1,3 +1,4 @@
+import { Range } from "vscode";
 import { Expression } from "./expressions";
 import { Trace } from "./lexer";
 import { SemanticToken } from "./parser";
@@ -154,4 +155,8 @@ export class Problem {
         readonly end: Trace,
         readonly message: string
     ) {}
+}
+
+export class ScopeRange {
+    constructor(readonly range: Range) {}
 }

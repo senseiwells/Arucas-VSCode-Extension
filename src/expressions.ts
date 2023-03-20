@@ -1,5 +1,5 @@
 import { TokenType } from "./lexer";
-import { Id, Node, Parameter, Type } from "./node";
+import { Id, Node, Parameter, ScopeRange, Type } from "./node";
 import {
     SemanticToken,
     SemanticTokenModifier,
@@ -215,6 +215,7 @@ export class FunctionExpr extends Expression {
         readonly arbitrary: boolean,
         readonly returns: Type[],
         readonly body: Statement,
+        readonly range: ScopeRange,
         token: SemanticToken
     ) {
         super(token);

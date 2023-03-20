@@ -1,14 +1,14 @@
 import * as vscode from "vscode";
-import { Parameter, Type, Variable } from "./node";
+import { InterfaceMethod, Parameter, Type, Variable } from "./node";
 import { FunctionStmt } from "./statements";
 
-interface VariableData {
+export interface VariableData {
     name: string,
     isPrivate: boolean,
     types?: Type[],
 }
 
-interface FunctionData {
+export interface FunctionData {
     name: string,
     parameters: Parameter[],
     returns: Type[],
@@ -16,7 +16,7 @@ interface FunctionData {
     varargs: boolean
 }
 
-interface ClassData {
+export interface ClassData {
     name: string,
     superclasses: Type[],
     fields: VariableData[],
@@ -25,11 +25,11 @@ interface ClassData {
     staticMethods: FunctionData[]
 }
 
-interface EnumData extends ClassData {
+export interface EnumData extends ClassData {
     enums: string[]
 }
 
-interface InterfaceData {
+export interface InterfaceData {
     name: string,
     methods: FunctionData[]
 }
@@ -49,19 +49,23 @@ export class ContextScope {
     ) {}
 
     addVariable(variable: Variable) {
-        if (variable.types.length === 0) {
-            const parentTypes = this.getVariableType(variable.name.id)
+        this.addRawVariable(variable.name.id, ...variable.types);
+    }
+
+    addRawVariable(name: string, ...types: Type[]) {
+        if (types.length === 0) {
+            const parentTypes = this.getVariableType(name)
             if (!parentTypes) {
-                this.variables.set(variable.name.id, {
-                    name: variable.name.id,
+                this.variables.set(name, {
+                    name: name,
                     isPrivate: false
                 });
             }
         } else {
-            this.variables.set(variable.name.id, {
-                name: variable.name.id,
+            this.variables.set(name, {
+                name: name,
                 isPrivate: false,
-                types: variable.types
+                types: types
             })
         }
     }
@@ -80,6 +84,10 @@ export class ContextScope {
 
     addClass(data: ClassData) {
         this.classes.set(data.name, data);
+    }
+
+    addEnum(data: EnumData) {
+        this.enums.set(data.name, data);
     }
 
     addInterface(iterfaceData: InterfaceData) {
@@ -123,6 +131,16 @@ export class ContextScope {
             returns: func.returns,
             isPrivate: !!func.isPrivate,
             varargs: func.arbitrary
+        });
+    }
+
+    addInterfaceMethod(interfaceName: string, func: InterfaceMethod) {
+        this.getInterface(interfaceName).methods.push({
+            name: func.name.id,
+            parameters: func.parameters,
+            returns: func.returns,
+            isPrivate: false,
+            varargs: false
         });
     }
 
@@ -222,19 +240,37 @@ export class ContextScope {
         this.children.push(context);
     }
 
+    getScopeForPosition(position: vscode.Position): ContextScope | null {
+        if (this.parent !== null && !this.range.contains(position)) {
+            return null;
+        }
+        if (this.children.length !== 0) {
+            for (const child of this.children) {
+                const scope = child.getScopeForPosition(position);
+                if (scope) {
+                    return scope;
+                }
+            }
+        }
+        return this;
+    }
+
     private hierarchy(): IterableIterator<ContextScope> {
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         let current: ContextScope | null = this
         return {
             [Symbol.iterator]() { return this },
-            next(): { done: boolean, value: ContextScope } {
+            next() {
                 const next = current;
                 if (next === null) {
-                    throw new RangeError("Iterator has no more elements");
+                    return { 
+                        done: true,
+                        value: undefined
+                    }
                 }
                 current = next.parent;
-                return { 
-                    done: current === null,
+                return {
+                    done: false,
                     value: next
                 };
             }
@@ -248,6 +284,15 @@ export class ContextScope {
             if (!clazz) {
                 throw new Error(`Expected to be able to find class with name '${name}'`);
             }
+        }
+        return clazz;
+    }
+
+    private getInterface(name: string): InterfaceData {
+        let clazz = this.interfaces.get(name);
+        clazz = clazz ? clazz : this.parent?.getInterface(name)
+        if (!clazz) {
+            throw new Error(`Expected to be able to find interface with name ${name}`);
         }
         return clazz;
     }

@@ -2,6 +2,7 @@
 /* eslint-disable no-constant-condition */
 /* eslint-disable @typescript-eslint/naming-convention */
 
+import { Range } from "vscode";
 import {
     Access,
     Assignable,
@@ -37,6 +38,7 @@ import {
     Parameter,
     PossibleModifier,
     Problem,
+    ScopeRange,
     Type,
     Variable,
 } from "./node";
@@ -263,11 +265,15 @@ export class Parser extends TokenReader {
             TokenType.LeftCurlyBracket,
             `Expected '{' after ${type} name`
         );
+        const start = this.peek(-1);
         const body = this.classBody(id.token.content);
         return new Class(
             new Id(id.token.content, id),
             superclasses,
             body,
+            new ScopeRange(
+                new Range(start.trace.range.start, this.peek(-1).trace.range.end)
+            ),
             clazz
         );
     }
@@ -298,6 +304,7 @@ export class Parser extends TokenReader {
             } while (this.isMatch(TokenType.Comma));
         }
         this.checkSoft(TokenType.LeftCurlyBracket, "Expected '{' after enum name");
+        const start = this.peek(-1);
         const enums: EnumMember[] = [];
         while (true) {
             if (this.peekType() !== TokenType.Identifier) {
@@ -351,6 +358,9 @@ export class Parser extends TokenReader {
             superclasses,
             enums,
             body,
+            new ScopeRange(
+                new Range(start.trace.range.start, this.peek(-1).trace.range.end)
+            ),
             enumeration
         );
     }
@@ -370,6 +380,7 @@ export class Parser extends TokenReader {
             TokenType.LeftCurlyBracket,
             "Expected '{' after interface name"
         );
+        const start = this.peek(-1);
         const functions: InterfaceMethod[] = [];
         while (!this.isMatch(TokenType.RightCurlyBracket)) {
             const fun = this.checkAsSemantic(
@@ -408,7 +419,14 @@ export class Parser extends TokenReader {
                 )
             );
         }
-        return new Interface(new Id(id.token.content, id), functions, inter);
+        return new Interface(
+            new Id(id.token.content, id), 
+            functions, 
+            new ScopeRange(
+                new Range(start.trace.range.start, this.peek(-1).trace.range.end)
+            ),
+            inter
+        );
     }
 
     classBody(name: string): ClassBody {
@@ -534,7 +552,19 @@ export class Parser extends TokenReader {
                     }
 
                     const body = this.statement();
-                    constructors.push(new Constructor(parameters, varargs, isPrivate, delegate, body, id));
+                    constructors.push(
+                        new Constructor(
+                            parameters, 
+                            varargs, 
+                            isPrivate, 
+                            delegate, 
+                            body,
+                            new ScopeRange(
+                                new Range(id.token.trace.range.start, this.peek(-1).trace.range.end)
+                            ),
+                            id
+                        )
+                    );
                     break;
                 }
                 case TokenType.Fun: {
@@ -585,6 +615,9 @@ export class Parser extends TokenReader {
                         varargs, 
                         returns, 
                         body, 
+                        new ScopeRange(
+                            new Range(operator.token.trace.range.end, this.peek(-1).trace.range.end)
+                        ),
                         operator
                     );
                     operators.push(fun);
@@ -655,6 +688,9 @@ export class Parser extends TokenReader {
             varargs,
             returns,
             body,
+            new ScopeRange(
+                new Range(fun.token.trace.range.end, this.peek(-1).trace.range.end)
+            ),
             fun
         );
     }
@@ -713,7 +749,13 @@ export class Parser extends TokenReader {
                 return this.scope();
             default: {
                 const start = this.peek();
-                return new Scope(this.statement(), { token: start });
+                return new Scope(
+                    this.statement(), 
+                    new ScopeRange(
+                        new Range(start.trace.range.start, this.peek(-1).trace.range.end)
+                    ), 
+                    { token: start }
+                );
             }
         }
     }
@@ -724,7 +766,13 @@ export class Parser extends TokenReader {
         if (statements instanceof Void) {
             return statements;
         }
-        return new Scope(statements, { token: start });
+        return new Scope(
+            statements,
+            new ScopeRange(
+                new Range(start.trace.range.start, this.peek(-1).trace.range.end)
+            ), 
+            { token: start }
+        );
     }
 
     statements(): Statement {
@@ -894,7 +942,16 @@ export class Parser extends TokenReader {
                 : this.expression();
         this.checkSoft(TokenType.RightBracket, "Expected ')' after for expression");
         const body = this.statement();
-        return new For(initial, condition, end, body, fo);
+        return new For(
+            initial,
+            condition, 
+            end,
+            body, 
+            new ScopeRange(
+                new Range(fo.token.trace.range.end, this.peek(-1).trace.range.end)
+            ),
+            fo
+        );
     }
 
     foreachStatement() {
@@ -919,7 +976,15 @@ export class Parser extends TokenReader {
             "Expected ')' after iterator expression"
         );
         const body = this.statement();
-        return new Foreach(new Id(id.token.content, id), iter, body, foreach);
+        return new Foreach(
+            new Id(id.token.content, id), 
+            iter, 
+            body, 
+            new ScopeRange(
+                new Range(foreach.token.trace.range.end, this.peek(-1).trace.range.end)
+            ),
+            foreach
+        );
     }
 
     tryStatement() {
@@ -1049,10 +1114,10 @@ export class Parser extends TokenReader {
             token: new Token(
                 TokenType.Identifier,
                 new Trace(
-                    first.lineStart,
-                    first.columnStart,
-                    last.lineEnd,
-                    last.columnEnd,
+                    new Range(
+                        first.range.start,
+                        last.range.end
+                    ),
                     first.offset,
                     last.offset - first.offset
                 ),
@@ -1536,7 +1601,16 @@ export class Parser extends TokenReader {
             const start = this.peek();
             body = new Return(this.expression(), { token: start });
         }
-        return new FunctionExpr(parameters, varargs, returns, body, fun);
+        return new FunctionExpr(
+            parameters, 
+            varargs, 
+            returns, 
+            body, 
+            new ScopeRange(
+                new Range(fun.token.trace.range.end, this.peek(-1).trace.range.end)
+            ),
+            fun
+        );
     }
 
     binaryAssignment(

@@ -13,6 +13,7 @@ import {
     Node,
     Parameter,
     PossibleModifier,
+    ScopeRange,
     Type,
     Variable,
 } from "./node";
@@ -89,6 +90,7 @@ export class Class extends Statement {
         readonly name: Id,
         readonly parents: Type[],
         readonly body: ClassBody,
+        readonly range: ScopeRange,
         token: SemanticToken
     ) {
         super(token);
@@ -110,6 +112,7 @@ export class Constructor extends Statement {
         readonly isPrivate: PossibleModifier,
         readonly delegate: ConstructorDelegate,
         readonly body: Statement,
+        readonly range: ScopeRange,
         token: SemanticToken
     ) {
         super(token);
@@ -140,6 +143,7 @@ export class Enum extends Statement {
         readonly parents: Type[],
         readonly enums: EnumMember[],
         readonly body: Statement,
+        readonly range: ScopeRange,
         token: SemanticToken
     ) {
         super(token);
@@ -173,6 +177,7 @@ export class Foreach extends Statement {
         readonly name: Id,
         readonly iterable: Expression,
         readonly body: Statement,
+        readonly scope: ScopeRange,
         token: SemanticToken
     ) {
         super(token);
@@ -193,6 +198,7 @@ export class For extends Statement {
         readonly condition: Expression,
         readonly expression: Expression,
         readonly body: Statement,
+        readonly scope: ScopeRange,
         token: SemanticToken
     ) {
         super(token);
@@ -216,6 +222,7 @@ export class FunctionStmt extends Statement {
         readonly arbitrary: boolean,
         readonly returns: Type[],
         readonly body: Statement,
+        readonly scope: ScopeRange,
         token: SemanticToken
     ) {
         super(token);
@@ -275,6 +282,7 @@ export class Interface extends Statement {
     constructor(
         readonly name: Id,
         readonly required: InterfaceMethod[],
+        readonly range: ScopeRange,
         token: SemanticToken
     ) {
         super(token);
@@ -323,7 +331,11 @@ export class Return extends Statement {
 }
 
 export class Scope extends Statement {
-    constructor(readonly statement: Statement, token: SemanticToken) {
+    constructor(
+        readonly statement: Statement, 
+        readonly range: ScopeRange,
+        token: SemanticToken
+    ) {
         super(token);
     }
 

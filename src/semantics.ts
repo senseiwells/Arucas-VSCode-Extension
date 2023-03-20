@@ -46,8 +46,8 @@ export class ArucasSemanticTokenProvider
                 const encodedType = this.encodeTokenType(type);
                 const encodedModifers = this.encodeTokenModifiers(tk.modifiers);
                 builder.push(
-                    tk.token.trace.lineStart,
-                    tk.token.trace.columnStart,
+                    tk.token.trace.range.start.line,
+                    tk.token.trace.range.start.character,
                     tk.token.trace.length,
                     encodedType,
                     encodedModifers
@@ -109,7 +109,7 @@ function refreshDiagnostics(document: vscode.TextDocument, diagnostics: vscode.D
         const start = problem.start;
         const end = problem.end;
         // console.log(`Highlighed problem: ${problem.message}, ${start.lineStart}:${start.columnStart} to ${end.lineEnd}:${end.columnEnd}`)
-        const range = new vscode.Range(start.lineStart, start.columnStart, end.lineEnd, end.columnEnd);
+        const range = new vscode.Range(start.range.start, end.range.end);
         const diagnostic = new vscode.Diagnostic(range, problem.message);
         problems.push(diagnostic);
     });

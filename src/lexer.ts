@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
+import { Position, Range } from "vscode";
+
 export class Token {
     readonly type: TokenType;
     readonly trace: Trace;
@@ -121,10 +123,7 @@ export enum TokenType {
 
 export class Trace {
     constructor(
-        readonly lineStart: number,
-        readonly columnStart: number,
-        readonly lineEnd: number,
-        readonly columnEnd: number,
+        readonly range: Range,
         readonly offset: number,
         readonly length: number
     ) {}
@@ -379,10 +378,10 @@ export class Lexer {
                     new Token(
                         token.type,
                         new Trace(
-                            oldLine,
-                            oldColumn,
-                            line,
-                            column,
+                            new Range(
+                                new Position(oldLine, oldColumn), 
+                                new Position(line, column)
+                            ),
                             offset,
                             token.length
                         ),
@@ -397,7 +396,13 @@ export class Lexer {
         tokens.push(
             new Token(
                 TokenType.Eof,
-                new Trace(line, column, line, column + 1, offset, 1),
+                new Trace(
+                    new Range(
+                        new Position(line, column), 
+                        new Position(line, column + 1)
+                    ),
+                    offset, 1
+                ),
                 ""
             )
         );
