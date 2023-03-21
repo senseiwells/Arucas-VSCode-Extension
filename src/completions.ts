@@ -14,9 +14,9 @@ import {
     Statement 
 } from "./statements";
 import { Assign, FunctionExpr } from "./expressions";
-import { ContextScope, FunctionData } from "./context";
+import { ClassData, ContextScope, FunctionData } from "./context";
 import { BaseVisitor, Parameter, ScopeRange, Type } from "./node";
-import { Lexer } from "./lexer";
+import { Lexer, Token, TokenType } from "./lexer";
 import { Parser } from "./parser";
 import { BuiltIns } from "./builtins";
 
@@ -28,9 +28,16 @@ export class ArucasCompletionProvider implements vscode.CompletionItemProvider {
         const tokens = new Lexer(document.getText()).createTokens();
         const parser = new Parser(tokens);
         
-        const completions = new CompletionVisitor(parser.parse())
-        const comps = completions.getCompletions([], position);
-        return comps;
+        const visitor = new CompletionVisitor(parser.parse());
+        const completions: vscode.CompletionItem[] = [];
+        visitor.addExpressionCompletions(
+            completions, 
+            position, 
+            new ReverseExpressionFinder(
+                new ReverseTokenIterator(tokens, position)
+            )
+        )
+        return completions;
     }
 }
 
@@ -43,26 +50,21 @@ class CompletionVisitor extends BaseVisitor {
     constructor(statement: Statement) {
         super();
         statement.visit(this);
+
+        for (const builtin of BuiltIns.builtInClasses) {
+            this.globalScope.addClass(builtin);
+        }
     }
 
-    getCompletions(completions: vscode.CompletionItem[], position: vscode.Position): vscode.CompletionItem[] {
-        BuiltIns.builtInFunctions.forEach((f) => {
-            const completion = new vscode.CompletionItem(f.name, vscode.CompletionItemKind.Function);
-            completion.documentation = new vscode.MarkdownString(this.formatFunction(f) + "\n\n" + f.desc);
-            completion.insertText = this.snippetFunction(f);
-            completions.push(completion);
-        });
-        BuiltIns.builtInClasses.forEach((c) => {
-            const completion = new vscode.CompletionItem(c.name, vscode.CompletionItemKind.Class);
-            completion.documentation = new vscode.MarkdownString(`### ${c.name}\n\n${c.desc}`)
-            completions.push(
-                completion
-            );
-        });
+    addGenericCompletions(completions: vscode.CompletionItem[]) {
+        BuiltIns.builtInFunctions.forEach((f) => completions.push(this.functionToCompletion(f)));
+        BuiltIns.builtInClasses.forEach((c) => completions.push(this.classToCompletion(c)));
+    }
 
+    addScopeCompletions(completions: vscode.CompletionItem[], position: vscode.Position) {
         const scope = this.globalScope.getScopeForPosition(position);
         if (!scope) {
-            return completions;
+            return;
         }
 
         scope.getVariables().forEach((v) => {
@@ -91,7 +93,62 @@ class CompletionVisitor extends BaseVisitor {
                 new vscode.CompletionItem(e.name, vscode.CompletionItemKind.Enum)
             );
         });
-        return completions;
+        return;
+    }
+
+    addExpressionCompletions(completions: vscode.CompletionItem[], position: vscode.Position, finder: ReverseExpressionFinder) {
+        const scope = this.globalScope.getScopeForPosition(position);
+        if (!scope) {
+            return;
+        }
+
+        const chain = finder.getChain();
+
+        const first = chain.pop();
+        if (!first) {
+            this.addGenericCompletions(completions);
+            this.addScopeCompletions(completions, position);
+            return;
+        }
+
+        const either = first.scope(scope);
+
+        let types: ClassData[];
+        if (Array.isArray(either)) {
+            types = either;
+        } else {
+            const clazz = either;
+            const next = chain.pop();
+            if (!next) {
+                // Completions for class
+                return;
+            }
+            types = next.static(clazz, scope);
+        }
+
+        let next = chain.pop();
+        while (next) {
+            types = next.member(types, scope);
+            next = chain.pop();
+        }
+
+        types.forEach((t) => {
+            // TODO:
+            t.methods.forEach((m) => completions.push(this.functionToCompletion(m)));
+        });
+    }
+
+    private classToCompletion(clazz: ClassData): vscode.CompletionItem {
+        const completion = new vscode.CompletionItem(clazz.name, vscode.CompletionItemKind.Class);
+        completion.documentation = new vscode.MarkdownString(`### ${clazz.name}` + clazz.desc ? "\n\n" + clazz.desc : "");
+        return completion;
+    }
+
+    private functionToCompletion(func: FunctionData): vscode.CompletionItem {
+        const completion = new vscode.CompletionItem(func.name, vscode.CompletionItemKind.Function);
+        completion.documentation = new vscode.MarkdownString(this.formatFunction(func) + func.desc ? "\n\n" + func.desc : "");
+        completion.insertText = this.snippetFunction(func);
+        return completion
     }
 
     private formatFunction(func: FunctionData): string {
@@ -198,7 +255,7 @@ class CompletionVisitor extends BaseVisitor {
     }
 
     visitImport(imported: Import): void {
-        // TODO:
+        // TODO: add support to index imports
         imported.imports;
     }
 
@@ -213,6 +270,7 @@ class CompletionVisitor extends BaseVisitor {
     }
 
     visitLocal(local: LocalVar): void {
+        // TODO: Type inference
         this.currentScope.addRawVariable(local.name.id, ...local.types);
         super.visitLocal(local);
     }
@@ -224,6 +282,7 @@ class CompletionVisitor extends BaseVisitor {
     }
 
     visitAssign(assign: Assign): void {
+        // TODO: Type inference
         this.currentScope.addRawVariable(assign.name);
         super.visitAssign(assign);
     }
@@ -263,5 +322,337 @@ class CompletionVisitor extends BaseVisitor {
         } finally {
             this.currentClass = previous;
         }
+    }
+}
+
+class ReverseTokenIterator {
+    private readonly tokens: Token[] = [];
+
+    constructor(
+        tokens: Token[],
+        position: vscode.Position,
+    ) {
+        for (const token of tokens) {
+            if (token.trace.range.start.isAfterOrEqual(position)) {
+                break;
+            }
+            this.tokens.push(token);
+        }
+    }
+
+    peek(): Token {
+        return this.tokens[this.tokens.length - 1];
+    }
+
+    hasNext(): boolean {
+        return this.tokens.length !== 0;
+    }
+
+    next(): Token {
+        const token = this.tokens.pop();
+        if (!token) {
+            throw new Error("No more tokens!");
+        }
+        return token;
+    }
+}
+
+class ReverseExpressionFinder {
+    private readonly chain: AbstractExpression[] = [];
+    private readonly last: VariableExpression;
+
+    private dot = false;
+
+    constructor(
+        private readonly iterator: ReverseTokenIterator
+    ) {
+        this.last = this.find();
+    }
+
+    getChain() {
+        return this.chain;
+    }
+
+    getLast() {
+        return this.last;
+    }
+
+    private find(): VariableExpression {
+        if (!this.iterator.hasNext()) {
+            return new VariableExpression("");
+        }
+
+        const first = this.iterator.peek();
+        let last: VariableExpression;
+        if (first.type === TokenType.Identifier) {
+            last = new VariableExpression(first.content);
+            this.iterator.next();
+        } else {
+            last = new VariableExpression("");
+        }
+
+        while (this.iterator.hasNext()) {
+            const token = this.iterator.next();
+            if (token.type === TokenType.Dot) {
+                if (this.dot) {
+                    return last;
+                }
+                this.dot = true;
+                continue;
+            }
+            if (this.dot) {
+                if (token.type === TokenType.Identifier) {
+                    this.chain.push(new VariableExpression(token.content));
+                } else if (token.type === TokenType.String) {
+                    this.chain.push(new TypedExpression("String"));
+                } else if (token.type === TokenType.True || token.type === TokenType.False) {
+                    this.chain.push(new TypedExpression("Boolean"));
+                } else if (token.type === TokenType.Number) {
+                    this.chain.push(new TypedExpression("Number"));
+                } else if (token.type === TokenType.Null) {
+                    this.chain.push(new TypedExpression("Null"));
+                } else if (token.type === TokenType.RightBracket && !this.findBrackets()) {
+                    return last;
+                } else if (token.type === TokenType.RightCurlyBracket && !this.findCurlyBrackets()) {
+                    return last;
+                } else if (token.type === TokenType.RightSquareBracket && !this.findSquareBrackets()) {
+                    return last;
+                }
+                this.dot = false;
+                continue;
+            }
+            return last;
+        }
+        return last;
+    }
+
+
+    private findBrackets(): boolean {
+        let hadFirst = false
+        let parameters = 0
+
+        let bracketDepth = 0
+
+        while (this.iterator.hasNext()) {
+            const token = this.iterator.next();
+            if (bracketDepth == 0 && token.type === TokenType.Comma) {
+                parameters++;
+                continue;
+            }
+            if (token.type === TokenType.RightBracket || token.type === TokenType.RightCurlyBracket || token.type === TokenType.RightSquareBracket) {
+                hadFirst = true;
+                bracketDepth++;
+                continue;
+            }
+            if (bracketDepth > 0 && (token.type === TokenType.LeftBracket || token.type === TokenType.LeftCurlyBracket || token.type === TokenType.LeftSquareBracket)) {
+                bracketDepth--;
+                continue;
+            }
+            if (token.type === TokenType.LeftBracket) {
+                while (this.iterator.hasNext()) {
+                    const sub = this.iterator.next();
+                    if (sub.type == TokenType.Identifier) {
+                        if (hadFirst) {
+                            parameters++;
+                        }
+                        this.chain.push(new FunctionExpression(sub.content, parameters));
+                        return true;
+                    }
+                    this.chain.push(TypedExpression.unknown);
+                    return true;
+                }
+                this.chain.push(TypedExpression.unknown)
+                return true
+            }
+            hadFirst = true
+        }
+        return false
+    }
+
+    private findCurlyBrackets(): boolean {
+        let bracketDepth = 0
+
+        while (this.iterator.hasNext()) {
+            const token = this.iterator.next();
+            if (token.type === TokenType.RightBracket || token.type === TokenType.RightCurlyBracket || token.type === TokenType.RightSquareBracket) {
+                bracketDepth++;
+                continue;
+            }
+            if (bracketDepth > 0 && (token.type === TokenType.LeftBracket || token.type === TokenType.LeftCurlyBracket || token.type === TokenType.LeftSquareBracket)) {
+                bracketDepth--;
+                continue;
+            }
+            if (token.type == TokenType.LeftCurlyBracket) {
+                this.chain.push(new TypedExpression("Map"));
+                return true;
+            }
+        }
+
+        return false
+    }
+
+    private findSquareBrackets(): boolean {
+        let bracketDepth = 0
+
+        while (this.iterator.hasNext()) {
+            const token = this.iterator.next();
+            if (token.type === TokenType.RightBracket || token.type === TokenType.RightCurlyBracket || token.type === TokenType.RightSquareBracket) {
+                bracketDepth++;
+                continue;
+            }
+            if (bracketDepth > 0 && (token.type === TokenType.LeftBracket || token.type === TokenType.LeftCurlyBracket || token.type === TokenType.LeftSquareBracket)) {
+                bracketDepth--;
+                continue;
+            }
+            if (token.type === TokenType.LeftSquareBracket) {
+                while (this.iterator.hasNext()) {
+                    const sub = this.iterator.next();
+                    if (sub.type === TokenType.Identifier) {
+                        this.chain.push(TypedExpression.unknown);
+                        return true;
+                    }
+                    this.chain.push(new TypedExpression("List"));
+                    return true
+                }
+                this.chain.push(new TypedExpression("List"));
+                return true;
+            }
+        }
+
+        return false
+    }
+}
+
+abstract class AbstractExpression {
+    abstract scope(scope: ContextScope): ClassData[] | ClassData;
+
+    abstract member(calling: ClassData[], scope: ContextScope): ClassData[];
+
+    abstract static(clazz: ClassData, scope: ContextScope): ClassData[];
+
+    protected stringsToClassData(names: string[], scope: ContextScope): ClassData[] {
+        const data: Map<string, ClassData> = new Map();
+        for (const name of names) {
+            if (name === BuiltIns.objClass.name) {
+                continue;
+            }
+            const clazz = scope.getClass(name);
+            if (!clazz) {
+                continue;
+            }
+            data.set(clazz.name, clazz);
+            this.stringsToClassData(clazz.superclasses, scope).forEach((c) => {
+                data.set(c.name, c);
+            });
+        }
+        data.set(BuiltIns.objClass.name, BuiltIns.objClass);
+        return [...data.values()];
+    }
+}
+
+class VariableExpression extends AbstractExpression {
+    constructor(
+        readonly name: string
+    ) {
+        super();
+    }
+
+    scope(scope: ContextScope): ClassData | ClassData[] {
+        const variable = scope.getVariable(this.name);
+        if (variable) {
+            const types = variable.types;
+            if (!types) {
+                return [BuiltIns.objClass];
+            }
+            return this.stringsToClassData(types, scope);
+        }
+        const clazz = scope.getClass(this.name);
+        if (!clazz) {
+            return [BuiltIns.objClass];
+        }
+        return clazz;
+    }
+
+    member(calling: ClassData[], scope: ContextScope): ClassData[] {
+        const possible: Map<string, ClassData> = new Map();
+        for (const type of calling) {
+            const field = type.fields.find((f) => f.name === this.name);
+            if (!field?.types) {
+                continue;
+            }
+            for (const type of this.stringsToClassData(field.types, scope)) {
+                possible.set(type.name, type);
+            }
+        }
+        return [...possible.values()];
+    }
+
+    static(clazz: ClassData, scope: ContextScope): ClassData[] {
+        const field = clazz.staticFields.find((f) => f.name === this.name);
+        if (!field?.types) {
+            return [BuiltIns.objClass];
+        }
+        return this.stringsToClassData(field.types, scope);
+    }
+}
+
+class FunctionExpression extends AbstractExpression {
+    constructor(
+        readonly name: string,
+        readonly parameters: number
+    ) {
+        super();
+    }
+
+    scope(scope: ContextScope): ClassData[] {
+        const types = scope.getFunction(this.name, this.parameters)?.returns
+        if (!types) {
+            return [BuiltIns.objClass];
+        }
+        return this.stringsToClassData(types, scope);
+    }
+
+    member(calling: ClassData[], scope: ContextScope): ClassData[] {
+        const possible: Map<string, ClassData> = new Map();
+        for (const type of calling) {
+            const method = type.methods.find((m) => m.name === this.name && m.parameters.length === this.parameters);
+            if (!method) {
+                continue;
+            }
+            for (const type of this.stringsToClassData(method.returns, scope)) {
+                possible.set(type.name, type);
+            }
+        }
+        return [...possible.values()];
+    }
+
+    static(clazz: ClassData, scope: ContextScope): ClassData[] {
+        const method = clazz.staticMethods.find((m) => m.name === this.name && m.parameters.length === this.parameters);
+        if (!method) {
+            return [BuiltIns.objClass];
+        }
+        return this.stringsToClassData(method.returns, scope);
+    }
+}
+
+class TypedExpression extends AbstractExpression {
+    static readonly unknown = new TypedExpression("Object");
+
+    constructor(
+        readonly type: string
+    ) {
+        super();
+    }
+
+    scope(scope: ContextScope): ClassData[] {
+        return this.stringsToClassData([this.type], scope);
+    }
+
+    member(): ClassData[] {
+        throw new Error("Typed expressions cannot be called upon");
+    }
+
+    static(): ClassData[] {
+        throw new Error("Typed expressions cannot be called upon");
     }
 }

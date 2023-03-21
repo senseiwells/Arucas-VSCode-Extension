@@ -57,6 +57,7 @@ export class BuiltIns {
     static builtInFunctions: FunctionData[];
     static builtInClasses: ClassData[];
     static importableClasses: Map<string, ClassData[]>;
+    static objClass: ClassData;
 
     static {
         vscode.workspace.onDidChangeConfiguration((e) => {
@@ -93,6 +94,13 @@ export class BuiltIns {
                         `Unable to use built-ins from url ${url}:\n${e.message}`
                     );
                 }
+            }
+        }
+
+        for (const clazz of this.builtInClasses) {
+            if (clazz.name === "Object") {
+                this.objClass = clazz;
+                break;
             }
         }
     }
