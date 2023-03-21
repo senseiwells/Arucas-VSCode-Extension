@@ -334,7 +334,6 @@ export class Parser extends TokenReader {
                     this.peekType() === TokenType.RightBracket
                         ? []
                         : this.expressions();
-                console.log(args);
                 this.checkSoft(
                     TokenType.RightBracket,
                     "Expected ')' after enum arguments"

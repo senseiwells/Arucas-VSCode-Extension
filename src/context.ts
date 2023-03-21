@@ -26,7 +26,7 @@ export interface FunctionData {
 export interface ClassData {
     name: string,
     desc?: string,
-    superclasses: Type[],
+    superclasses: string[],
     fields: VariableData[],
     staticFields: VariableData[],
     methods: FunctionData[],

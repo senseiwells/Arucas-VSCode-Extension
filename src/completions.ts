@@ -4,44 +4,18 @@ import {
     ClassBody,
     Constructor,
     Enum,
-    ExpressionStmt,
     For,
     Foreach,
     FunctionStmt,
-    If,
     Import,
     Interface,
     LocalVar,
-    Return,
     Scope,
-    Statement,
-    StatementVisitor,
-    Statements,
-    Switch,
-    Throw,
-    Try,
-    While,
+    Statement 
 } from "./statements";
-import {
-    Assign,
-    Binary,
-    Bracket,
-    BracketAccess,
-    BracketAssign,
-    Call,
-    ExpressionVisitor,
-    FunctionExpr,
-    List,
-    MapExpr,
-    MemberAccess,
-    MemberAssign,
-    MemberCall,
-    NewCall,
-    Unary,
-    UnpackAssign,
-} from "./expressions";
+import { Assign, FunctionExpr } from "./expressions";
 import { ContextScope, FunctionData } from "./context";
-import { Parameter, ScopeRange, Type } from "./node";
+import { BaseVisitor, Parameter, ScopeRange, Type } from "./node";
 import { Lexer } from "./lexer";
 import { Parser } from "./parser";
 import { BuiltIns } from "./builtins";
@@ -60,15 +34,14 @@ export class ArucasCompletionProvider implements vscode.CompletionItemProvider {
     }
 }
 
-class CompletionVisitor
-    implements StatementVisitor<void>, ExpressionVisitor<void>
-{
+class CompletionVisitor extends BaseVisitor {
     private readonly globalScope: ContextScope = new ContextScope();
     private currentScope: ContextScope = this.globalScope;
 
     private currentClass: string | null = null;
 
     constructor(statement: Statement) {
+        super();
         statement.visit(this);
     }
 
@@ -78,6 +51,13 @@ class CompletionVisitor
             completion.documentation = new vscode.MarkdownString(this.formatFunction(f) + "\n\n" + f.desc);
             completion.insertText = this.snippetFunction(f);
             completions.push(completion);
+        });
+        BuiltIns.builtInClasses.forEach((c) => {
+            const completion = new vscode.CompletionItem(c.name, vscode.CompletionItemKind.Class);
+            completion.documentation = new vscode.MarkdownString(`### ${c.name}\n\n${c.desc}`)
+            completions.push(
+                completion
+            );
         });
 
         const scope = this.globalScope.getScopeForPosition(position);
@@ -128,42 +108,32 @@ class CompletionVisitor
         );
     }
 
-    visitBreak(): void {
-        // Do nothing
-    }
-
     visitClassBody(klass: ClassBody): void {
         const className = this.currentClass;
         if (!className) {
             throw new Error("Not in class");
         }
-        klass.constructors.forEach((c) => c.visit(this));
         klass.fields.forEach((f) => {
             this.currentScope.addField(className, f);
-            f.expression.visit(this);
         });
         klass.methods.forEach((m) => {
             this.currentScope.addMethod(className, m);
-            m.visit(this);
         });
-        klass.operators.forEach((o) => o.visit(this));
         klass.staticFields.forEach((f) => {
             this.currentScope.addStaticField(className, f);
-            f.expression.visit(this);
         });
         klass.staticMethods.forEach((m) => {
             this.currentScope.addStaticMethod(className, m);
-            m.visit(this);
         });
 
-        klass.initialisers.forEach((i) => i.visit(this));
+        super.visitClassBody(klass);
     }
 
     visitClass(klass: Class): void {
         this.pushClass(klass.name.id, () => {
             this.currentScope.addClass({
                 name: klass.name.id,
-                superclasses: klass.parents,
+                superclasses: klass.parents.map((t) => t.name),
                 fields: [],
                 methods: [],
                 staticFields: [],
@@ -175,21 +145,16 @@ class CompletionVisitor
                     new Type(klass.name.id, klass.token)
                 );
                 this.currentScope.addRawVariable("super", ...klass.parents);
-                klass.body.visit(this);
+                super.visitClass(klass);
             });
         });
     }
 
     visitConstructor(konstructor: Constructor): void {
-        this.pushScope(konstructor.range, () => {
+        this.pushScope(konstructor.scope, () => {
             this.addParametersToScope(konstructor.parameters);
-            konstructor.delegate.args.forEach((a) => a.visit(this));
-            konstructor.body.visit(this);
+            super.visitConstructor(konstructor);
         });
-    }
-
-    visitContinue(): void {
-        // Do nothing
     }
 
     visitEnum(enumeration: Enum): void {
@@ -197,23 +162,16 @@ class CompletionVisitor
             this.currentScope.addEnum({
                 enums: enumeration.enums.map((e) => e.name),
                 name: enumeration.name.id,
-                superclasses: enumeration.parents,
+                superclasses: enumeration.parents.map((t) => t.name),
                 fields: [],
                 methods: [],
                 staticFields: [],
                 staticMethods: [],
             });
             this.pushScope(enumeration.range, () => {
-                enumeration.enums.forEach((e) => {
-                    e.args.forEach((a) => a.visit(this));
-                });
-                enumeration.body.visit(this);
+                super.visitEnum(enumeration);
             });
         });
-    }
-
-    visitExpression(expression: ExpressionStmt): void {
-        expression.expression.visit(this);
     }
 
     visitForeach(foreach: Foreach): void {
@@ -225,10 +183,7 @@ class CompletionVisitor
 
     visitFor(forr: For): void {
         this.pushScope(forr.scope, () => {
-            forr.initial.visit(this);
-            forr.condition.visit(this);
-            forr.body.visit(this);
-            forr.expression.visit(this);
+            super.visitFor(forr);
         });
     }
 
@@ -238,14 +193,8 @@ class CompletionVisitor
         }
         this.pushScope(func.scope, () => {
             this.addParametersToScope(func.parameters);
-            func.body.visit(this);
+            super.visitFunction(func);
         });
-    }
-
-    visitIf(ifs: If): void {
-        ifs.condition.visit(this);
-        ifs.body.visit(this);
-        ifs.otherwise.body.visit(this);
     }
 
     visitImport(imported: Import): void {
@@ -265,146 +214,25 @@ class CompletionVisitor
 
     visitLocal(local: LocalVar): void {
         this.currentScope.addRawVariable(local.name.id, ...local.types);
-        local.assignee.visit(this);
-    }
-
-    visitReturn(ret: Return): void {
-        ret.expression.visit(this);
+        super.visitLocal(local);
     }
 
     visitScope(scope: Scope): void {
         this.pushScope(scope.range, () => {
-            scope.statement.visit(this);
+            super.visitScope(scope);
         });
-    }
-
-    visitStatements(statements: Statements): void {
-        statements.statements.forEach((s) => s.visit(this));
-    }
-
-    visitSwitch(switsch: Switch): void {
-        switsch.condition.visit(this);
-        switsch.cases.forEach((cs) => cs.forEach((c) => c.visit(this)));
-        switsch.caseStatements.forEach((s) => s.visit(this));
-        switsch.defaultStatement?.visit(this);
-    }
-
-    visitThrow(thrown: Throw): void {
-        thrown.throwable.visit(this);
-    }
-
-    visitTry(tried: Try): void {
-        tried.body.visit(this);
-        tried.catch?.body.visit(this);
-        tried.finally.statement.visit(this);
-    }
-
-    visitVoid(): void {
-        // Do nothing
-    }
-
-    visitWhile(whilst: While): void {
-        whilst.condition.visit(this);
-        whilst.body.visit(this);
-    }
-
-    visitAccess(): void {
-        // Do nothing
     }
 
     visitAssign(assign: Assign): void {
         this.currentScope.addRawVariable(assign.name);
-        assign.assignee.visit(this);
-    }
-
-    visitBinary(binary: Binary): void {
-        binary.left.visit(this);
-        binary.right.visit(this);
-    }
-
-    visitBracketAccess(bracket: BracketAccess): void {
-        bracket.expression.visit(this);
-        bracket.index.visit(this);
-    }
-
-    visitBracketAssign(bracket: BracketAssign): void {
-        bracket.expression.visit(this);
-        bracket.index.visit(this);
-        bracket.assignee.visit(this);
-    }
-
-    visitBracket(bracket: Bracket): void {
-        bracket.expression.visit(this);
-    }
-
-    visitCall(call: Call): void {
-        call.expression.visit(this);
-        call.args.forEach((a) => a.visit(this));
-    }
-
-    visitFunctionAccess(): void {
-        // Do nothing
+        super.visitAssign(assign);
     }
 
     visitFunctionExpr(func: FunctionExpr): void {
         this.pushScope(func.range, () => {
             this.addParametersToScope(func.parameters);
-            func.body.visit(this);
+            super.visitFunctionExpr(func);
         });
-    }
-
-    visitList(list: List): void {
-        list.expressions.forEach((e) => e.visit(this));
-    }
-
-    visitLiteral(): void {
-        // Do nothing
-    }
-
-    visitMap(map: MapExpr): void {
-        map.expressions.forEach((v, k) => {
-            v.visit(this);
-            k.visit(this);
-        });
-    }
-
-    visitMemberAccess(member: MemberAccess): void {
-        member.expression.visit(this);
-    }
-
-    visitMemberAssign(member: MemberAssign): void {
-        member.expression.visit(this);
-        member.assignee.visit(this);
-    }
-
-    visitMemberCall(member: MemberCall): void {
-        member.expression.visit(this);
-        member.args.forEach((a) => a.visit(this));
-    }
-
-    visitNewAcess(): void {
-        // Do nothing
-    }
-
-    visitNewCall(call: NewCall): void {
-        call.args.forEach((a) => a.visit(this));
-    }
-
-    visitSuper(): void {
-        // Do nothing
-    }
-
-    visitThis(): void {
-        // Do nothing
-    }
-
-    visitUnary(unary: Unary): void {
-        unary.expression.visit(this);
-    }
-
-    visitUnpack(unpack: UnpackAssign): void {
-        unpack.assignables.forEach((a) => a.visit(this));
-        unpack.assignee.visit(this);
     }
 
     addParametersToScope(parameters: Parameter[]) {

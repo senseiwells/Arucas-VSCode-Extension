@@ -112,7 +112,7 @@ export class Constructor extends Statement {
         readonly isPrivate: PossibleModifier,
         readonly delegate: ConstructorDelegate,
         readonly body: Statement,
-        readonly range: ScopeRange,
+        readonly scope: ScopeRange,
         token: SemanticToken
     ) {
         super(token);
@@ -282,7 +282,7 @@ export class Interface extends Statement {
     constructor(
         readonly name: Id,
         readonly required: InterfaceMethod[],
-        readonly range: ScopeRange,
+        readonly scope: ScopeRange,
         token: SemanticToken
     ) {
         super(token);

@@ -54,9 +54,9 @@ interface RootDoc {
 }
 
 export class BuiltIns {
-    static readonly builtInFunctions: FunctionData[] = [];
-    static readonly builtInClasses: ClassData[] = [];
-    static readonly importableClasses: Map<string, ClassData[]> = new Map();
+    static builtInFunctions: FunctionData[];
+    static builtInClasses: ClassData[];
+    static importableClasses: Map<string, ClassData[]>;
 
     static {
         vscode.workspace.onDidChangeConfiguration((e) => {
@@ -76,6 +76,11 @@ export class BuiltIns {
         if (!(value instanceof Array)) {
             return;
         }
+
+        this.builtInFunctions = [];
+        this.builtInClasses = [];
+        this.importableClasses = new Map();
+
         const urls = value as Array<string>;
         for (const url of urls) {
             const content = await axios.get(url);
@@ -96,7 +101,7 @@ export class BuiltIns {
         for (const [name, functions] of Object.entries(docs.extensions)) {
             this.parseExtension(name, functions);
         }
-        for (const [name, clazz] of Object.entries(docs.extensions)) {
+        for (const [name, clazz] of Object.entries(docs.classes)) {
             this.parseClass(name, clazz);
         }
     }
@@ -111,9 +116,34 @@ export class BuiltIns {
     }
 
     private static parseClass(name: string, clazz: ClassDoc) {
-        // TODO:
-    }
+        let classes: ClassData[];
+        if (clazz.import_path) {
+            const importable = this.importableClasses.get(clazz.import_path);
+            if (importable) {
+                classes = importable;
+            } else {
+                classes = [];
+                this.importableClasses.set(clazz.import_path, classes);
+            }
+        } else {
+            classes = this.builtInClasses;
+        }
+        let description = new String();
+        description += clazz.desc.join("\n");
 
+        if (!classes.find((c) => c.name === clazz.name)) {
+            classes.push({
+                name: clazz.name,
+                fields: [],
+                staticFields: clazz.static_members.map((f) => ({ name: f.name, isPrivate: false, types: [f.type], desc: f.desc.join("\n") })),
+                methods: clazz.methods.map((m) => this.parseFunction(m)),
+                staticMethods: clazz.static_methods.map((m) => this.parseFunction(m)),
+                superclasses: [clazz.superclass],
+                desc: description.toString()
+            });
+        }
+    }
+ 
     private static parseFunction(func: FunctionDoc): FunctionData {
         let description = new String();
         description += func.desc.join("\n");
