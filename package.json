@@ -4,6 +4,7 @@
   "description": "Language Support for Arucas",
   "version": "2.0.7",
   "publisher": "Arucas",
+  "icon": "assets/icon.png",
   "engines": {
     "vscode": "^1.76.0"
   },
