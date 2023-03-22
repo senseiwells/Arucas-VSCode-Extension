@@ -60,7 +60,7 @@
                     "name": "keyword.control.conditional.arucas"
                 },
                 {
-                    "match": "\\b(while|for|foreach|return|break|continue|new)\\b",
+                    "match": "\\b(while|for|foreach|return|break|continue)\\b",
                     "name": "keyword.control.arucas"
                 }
             ]
@@ -140,7 +140,7 @@
                     "name": "storage.modifier.import.arucas"
                 },
                 "2": {
-                    "name": "support.function"
+                    "name": "entity.name.class"
                 }
             },
             "patterns": [
@@ -368,6 +368,17 @@
         },
         "literals": {
             "patterns": [
+                {
+                    "match": "\\b(new)\\b\\s+([a-zA-Z]\\w*)",
+                    "captures": {
+                        "1": {
+                            "name": "storage.modifier.arucas"
+                        },
+                        "2": {
+                            "name": "entity.name.class.arucas"
+                        }
+                    }
+                },
                 {
                     "match": "\\b(true|false|null)\\b",
                     "name": "constant.language.arucas"

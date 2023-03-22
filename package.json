@@ -55,6 +55,10 @@
             "https://raw.githubusercontent.com/senseiwells/Arucas/main/generated/json/AllDocs.json"
           ],
           "description": "Adds autocompletions for the native classes and functions, this provides a list of documentation JSONs."
+        },
+        "arucas.libraries": {
+          "type": "string",
+          "description": "Determines the path to use to index libraries, if left empty `user/.arucas/libs` is used"
         }
       }
     }

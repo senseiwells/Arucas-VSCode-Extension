@@ -19,6 +19,7 @@ import { BaseVisitor, Parameter, ScopeRange, Type } from "./node";
 import { Lexer, Token, TokenType } from "./lexer";
 import { Parser } from "./parser";
 import { BuiltIns } from "./builtins";
+import { Imports } from "./importer";
 
 export class ArucasCompletionProvider implements vscode.CompletionItemProvider {
     async provideCompletionItems(
@@ -28,8 +29,12 @@ export class ArucasCompletionProvider implements vscode.CompletionItemProvider {
         const tokens = new Lexer(document.getText()).createTokens();
         const parser = new Parser(tokens);
         
-        const visitor = new CompletionVisitor(parser.parse());
         const completions: vscode.CompletionItem[] = [];
+        if (KeywordCompletions.addCompletions(completions, tokens, position)) {
+            return completions;
+        }
+
+        const visitor = new CompletionVisitor(parser.parse());
         visitor.addExpressionCompletions(
             completions, 
             position, 
@@ -41,9 +46,56 @@ export class ArucasCompletionProvider implements vscode.CompletionItemProvider {
     }
 }
 
-class CompletionVisitor extends BaseVisitor {
+export class KeywordCompletions {
+    static addCompletions(completions: vscode.CompletionItem[], tokens: Token[], position: vscode.Position): boolean {
+        const iterator = new ReverseTokenIterator(tokens, position);
+        if (iterator.hasNext()) {
+            let last = iterator.peek().type;
+            if (last === TokenType.From) {
+                this.addImportCompletions("", completions);
+                return true;
+            }
+            if (last !== TokenType.Dot && last !== TokenType.Identifier) {
+                return false;
+            }
+            let path = "";
+            while (iterator.hasNext()) {
+                const next = iterator.next();
+                const nextType = next.type;
+                if (nextType === TokenType.From) {
+                    if (last === TokenType.Identifier) {
+                        this.addImportCompletions(path, completions);
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+                if (nextType !== TokenType.Dot && nextType !== TokenType.Identifier) {
+                    return false;
+                }
+                path = next.content + path;
+                last = nextType;
+            }
+        }
+        return false;
+    }
+
+    private static addImportCompletions(starts: string, completions: vscode.CompletionItem[]) {
+        const lastPeriod = starts.lastIndexOf(".") + 1;
+        Imports.getImportables().filter((i) => i.startsWith(starts)).forEach((i) => {
+            const item = new vscode.CompletionItem(
+                i.substring(lastPeriod), vscode.CompletionItemKind.Reference
+            );
+            completions.push(item);
+        });
+    }
+}
+
+export class CompletionVisitor extends BaseVisitor {
     private readonly globalScope: ContextScope = new ContextScope();
     private currentScope: ContextScope = this.globalScope;
+
+    readonly definedClasses: ClassData[] = [];
 
     private currentClass: string | null = null;
 
@@ -73,11 +125,9 @@ class CompletionVisitor extends BaseVisitor {
         scope.getClasses().forEach(
             (c) => completions.push(this.classToCompletion(c))
         );
-        scope.getInterfaces().forEach((i) => {
-            completions.push(
-                new vscode.CompletionItem(i.name, vscode.CompletionItemKind.Interface)
-            );
-        });
+        scope.getInterfaces().forEach(
+            (i) => completions.push(this.interfaceToCompletion(i))
+        );
         scope.getEnums().forEach(
             (c) => completions.push(this.classToCompletion(c))
         );
@@ -107,8 +157,8 @@ class CompletionVisitor extends BaseVisitor {
             const clazz = either;
             const next = chain.pop();
             if (!next) {
-                clazz.staticMethods.forEach((m) => completions.push(this.functionToCompletion(m, `<${clazz.name}>`)));
-                clazz.staticFields.forEach((f) => completions.push(this.fieldToCompletion(`<${clazz.name}>`, f)));
+                clazz.staticMethods.forEach((m) => completions.push(this.functionToCompletion(m, clazz.name)));
+                clazz.staticFields.forEach((f) => completions.push(this.fieldToCompletion(clazz.name, f)));
                 completions.push(
                     new vscode.CompletionItem(
                         "type",
@@ -127,8 +177,8 @@ class CompletionVisitor extends BaseVisitor {
         }
 
         types.forEach((t) => {
-            t.fields.forEach((f) => completions.push(this.fieldToCompletion(t.name, f)));
-            t.methods.forEach((m) => completions.push(this.functionToCompletion(m, t.name)));
+            t.fields.forEach((f) => completions.push(this.fieldToCompletion(`<${t.name}>`, f)));
+            t.methods.forEach((m) => completions.push(this.functionToCompletion(m, `<${t.name}>`)));
         });
     }
 
@@ -197,14 +247,18 @@ class CompletionVisitor extends BaseVisitor {
 
     visitClass(klass: Class): void {
         this.pushClass(klass.name.id, () => {
-            this.currentScope.addClass({
+            const data: ClassData = {
                 name: klass.name.id,
                 superclasses: klass.parents.map((t) => t.name),
                 fields: [],
                 methods: [],
                 staticFields: [],
                 staticMethods: [],
-            });
+            };
+            this.currentScope.addClass(data);
+            if (this.currentScope === this.globalScope) {
+                this.definedClasses.push(data);
+            }
             this.pushScope(klass.range, () => {
                 this.currentScope.addRawVariable(
                     "this",
@@ -225,7 +279,7 @@ class CompletionVisitor extends BaseVisitor {
 
     visitEnum(enumeration: Enum): void {
         this.pushClass(enumeration.name.id, () => {
-            this.currentScope.addEnum({
+            const data: EnumData = {
                 enums: enumeration.enums.map((e) => e.name),
                 name: enumeration.name.id,
                 superclasses: enumeration.parents.map((t) => t.name),
@@ -233,7 +287,11 @@ class CompletionVisitor extends BaseVisitor {
                 methods: [],
                 staticFields: [],
                 staticMethods: [],
-            });
+            };
+            if (this.currentScope === this.globalScope) {
+                this.definedClasses.push(data);
+            }
+            this.currentScope.addEnum(data);
             this.pushScope(enumeration.range, () => {
                 super.visitEnum(enumeration);
             });
@@ -264,8 +322,13 @@ class CompletionVisitor extends BaseVisitor {
     }
 
     visitImport(imported: Import): void {
-        // TODO: add support to index imports
-        imported.imports;
+        Imports.getImported(imported).forEach((c) => {
+            if (isEnum(c)) {
+                this.currentScope.addEnum(c);
+            } else {
+                this.currentScope.addClass(c);
+            }
+        });
     }
 
     visitInterface(interfaced: Interface): void {
@@ -410,7 +473,7 @@ class ReverseExpressionFinder {
                 continue;
             }
             if (this.dot) {
-                if (token.type === TokenType.Identifier) {
+                if (token.type === TokenType.Identifier || token.type === TokenType.This || token.type === TokenType.Super) {
                     this.chain.push(new VariableExpression(token.content));
                 } else if (token.type === TokenType.String) {
                     this.chain.push(new TypedExpression("String"));
@@ -465,8 +528,9 @@ class ReverseExpressionFinder {
                             parameters++;
                         }
                         if (this.iterator.hasNext()) {
-                            const next = this.iterator.next();
+                            const next = this.iterator.peek();
                             if (next.type === TokenType.New) {
+                                this.iterator.next();
                                 this.chain.push(new TypedExpression(sub.content));
                                 return true;
                             }
@@ -557,7 +621,20 @@ abstract class AbstractExpression {
             if (!clazz) {
                 clazz = scope.getEnum(name);
                 if (!clazz) {
-                    continue;
+                    const inter = scope.getInterface(name);
+                    if (!inter) {
+                        continue;
+                    }
+                    // Fake class
+                    clazz = {
+                        name: inter.name,
+                        methods: inter.methods,
+                        desc: inter.desc,
+                        fields: [],
+                        staticFields: [],
+                        staticMethods: [],
+                        superclasses: []
+                    };
                 }
             }
             data.set(clazz.name, clazz);
@@ -611,7 +688,7 @@ class VariableExpression extends AbstractExpression {
         if (this.name === "type") {
             return this.stringsToClassData(["Type"], scope);
         }
-        if (this.isEnum(clazz)) {
+        if (isEnum(clazz)) {
             const element = clazz.enums.find((f) => f === this.name);
             if (element) {
                 return this.stringsToClassData([clazz.name], scope);
@@ -622,13 +699,6 @@ class VariableExpression extends AbstractExpression {
             return [BuiltIns.objClass];
         }
         return this.stringsToClassData(field.types, scope);
-    }
-
-    private isEnum(object: unknown): object is EnumData {
-        if (object && typeof object === "object") {
-            return "enums" in object;
-        }
-        return false;
     }
 }
 
@@ -691,4 +761,11 @@ class TypedExpression extends AbstractExpression {
     static(): ClassData[] {
         throw new Error("Typed expressions cannot be called upon");
     }
+}
+
+function isEnum(object: unknown): object is EnumData {
+    if (object && typeof object === "object") {
+        return "enums" in object;
+    }
+    return false;
 }

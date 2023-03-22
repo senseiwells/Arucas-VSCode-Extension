@@ -1102,6 +1102,7 @@ export class Parser extends TokenReader {
         );
         const first = this.peek(-1).trace;
         while (this.isMatch(TokenType.Dot)) {
+            builder += "."
             builder += this.check(
                 TokenType.Identifier,
                 "Expected submodule name after '.'"

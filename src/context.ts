@@ -145,7 +145,7 @@ export class ContextScope {
     }
 
     addInterfaceMethod(interfaceName: string, func: InterfaceMethod) {
-        this.getInterface(interfaceName).methods.push({
+        this.getInterfaceNotNull(interfaceName).methods.push({
             name: func.name.id,
             parameters: func.parameters.map((p) => ({ name: p.name, types: p.types.map((t) => t.name) })),
             returns: func.returns.map((t) => t.name),
@@ -179,6 +179,11 @@ export class ContextScope {
     getEnum(name: string): EnumData | undefined {
         const enu = this.enums.get(name);
         return enu ? enu : this.parent?.getEnum(name)
+    }
+
+    getInterface(name: string): InterfaceData | undefined {
+        const inter = this.interfaces.get(name);
+        return inter ? inter : this.parent?.getInterface(name)
     }
 
     getVariables(): VariableData[] {
@@ -298,7 +303,7 @@ export class ContextScope {
         return clazz;
     }
 
-    private getInterface(name: string): InterfaceData {
+    private getInterfaceNotNull(name: string): InterfaceData {
         let clazz = this.interfaces.get(name);
         clazz = clazz ? clazz : this.parent?.getInterface(name)
         if (!clazz) {

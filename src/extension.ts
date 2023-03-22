@@ -3,6 +3,7 @@ import { ArucasSemanticTokenProvider, legend, updateDiagnostics } from "./semant
 import { ArucasCompletionProvider } from "./completions";
 import { BuiltIns } from "./builtins";
 import { ArucasSymbolProvider } from "./symbols";
+import { Imports } from "./importer";
 
 export function activate(context: vscode.ExtensionContext) {
     console.log(
