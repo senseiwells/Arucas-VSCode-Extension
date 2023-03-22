@@ -13,7 +13,7 @@ import {
     Scope,
     Statement 
 } from "./statements";
-import { Assign, FunctionExpr } from "./expressions";
+import { Access, Assign, Assignable, Call, Expression, FunctionAccess, FunctionExpr, Literal, MemberAccess, MemberCall, NewCall } from "./expressions";
 import { ClassData, ContextScope, EnumData, FunctionData, InterfaceData, VariableData } from "./context";
 import { BaseVisitor, Parameter, ScopeRange, Type } from "./node";
 import { Lexer, Token, TokenType } from "./lexer";
@@ -34,7 +34,7 @@ export class ArucasCompletionProvider implements vscode.CompletionItemProvider {
             return completions;
         }
 
-        const visitor = new CompletionVisitor(parser.parse());
+        const visitor = new CompletionVisitor(parser.parse(), true);
         visitor.addExpressionCompletions(
             completions, 
             position, 
@@ -99,22 +99,21 @@ export class CompletionVisitor extends BaseVisitor {
 
     private currentClass: string | null = null;
 
-    constructor(statement: Statement) {
+    constructor(statement: Statement, private shouldGuessTypes = false) {
         super();
-        statement.visit(this);
 
         for (const builtin of BuiltIns.builtInClasses) {
             this.globalScope.addClass(builtin);
         }
+        for (const builtin of BuiltIns.builtInFunctions) {
+            this.globalScope.addFunction(builtin);
+        }
+        
+        statement.visit(this);
     }
 
     addScopeCompletions(completions: vscode.CompletionItem[], position: vscode.Position) {
-        BuiltIns.builtInFunctions.forEach((f) => completions.push(this.functionToCompletion(f)));
-
-        const scope = this.globalScope.getScopeForPosition(position);
-        if (!scope) {
-            return;
-        }
+        const scope = this.globalScope.getScopeForPosition(position) ?? this.globalScope;
 
         scope.getVariables().forEach(
             (v) => completions.push(this.variableToCompletion(v))
@@ -176,9 +175,23 @@ export class CompletionVisitor extends BaseVisitor {
             next = chain.pop();
         }
 
+        const duplicates: Set<string> = new Set();
+
         types.forEach((t) => {
-            t.fields.forEach((f) => completions.push(this.fieldToCompletion(`<${t.name}>`, f)));
-            t.methods.forEach((m) => completions.push(this.functionToCompletion(m, `<${t.name}>`)));
+            t.fields.forEach((f) => {
+                const id = "%" + f.name;
+                if (!duplicates.has(id)) {
+                    completions.push(this.fieldToCompletion(`<${t.name}>`, f));
+                    duplicates.add(id);
+                }
+            });
+            t.methods.forEach((m) => {
+                const id = "~" + m.name + m.parameters;
+                if (!duplicates.has(id)) {
+                    completions.push(this.functionToCompletion(m, `<${t.name}>`));
+                    duplicates.add(id);
+                }
+            });
         });
     }
 
@@ -313,7 +326,7 @@ export class CompletionVisitor extends BaseVisitor {
 
     visitFunction(func: FunctionStmt): void {
         if (!func.isClass) {
-            this.currentScope.addFunction(func);
+            this.currentScope.addFunctionStmt(func);
         }
         this.pushScope(func.scope, () => {
             this.addParametersToScope(func.parameters);
@@ -342,8 +355,11 @@ export class CompletionVisitor extends BaseVisitor {
     }
 
     visitLocal(local: LocalVar): void {
-        // TODO: Type inference
-        this.currentScope.addRawVariable(local.name.id, ...local.types);
+        if (local.types.length !== 0) {
+            this.currentScope.addRawVariable(local.name.id, ...local.types);
+        } else {
+            this.currentScope.addRawSVariable(local.name.id, this.guessType(local.assignee));
+        }
         super.visitLocal(local);
     }
 
@@ -354,8 +370,7 @@ export class CompletionVisitor extends BaseVisitor {
     }
 
     visitAssign(assign: Assign): void {
-        // TODO: Type inference
-        this.currentScope.addRawVariable(assign.name);
+        this.currentScope.addRawSVariable(assign.name, this.guessType(assign.assignee));
         super.visitAssign(assign);
     }
 
@@ -393,6 +408,156 @@ export class CompletionVisitor extends BaseVisitor {
             block();
         } finally {
             this.currentClass = previous;
+        }
+    }
+
+    private guessType(expression: Expression): string[] {
+        if (!this.shouldGuessTypes) {
+            return [];
+        }
+        if (expression instanceof Literal) {
+            switch (typeof expression.literal) {
+                case "boolean": return ["Boolean"];
+                case "number": return ["Number"];
+                case "string": return ["String"];
+                default: return ["Null"];
+            }
+        }
+        if (expression instanceof Call) {
+            if (expression.expression instanceof FunctionAccess) {
+                const func = this.currentScope.getFunction(expression.expression.name, expression.args.length);
+                if (func) {
+                    return func.returns;
+                }
+            }
+            return [];
+        } 
+        if (expression instanceof Access) {
+            const type = this.currentScope.getVariableType(expression.name);
+            return type ?? [];
+        }
+        if (expression instanceof MemberAccess) {
+            if (expression.expression instanceof Access) {
+                let clazz = this.currentScope.getClass(expression.expression.name);
+                if (!clazz) {
+                    clazz = this.currentScope.getEnum(expression.expression.name);
+                    if (!clazz) {
+                        return this.fieldsFor(expression);
+                    }
+                }
+                const f = clazz.staticFields.find((f) => f.name === expression.name);
+                return f?.types ?? [];
+            }
+            return this.fieldsFor(expression);
+        }
+        if (expression instanceof MemberCall) {
+            if (expression.expression instanceof Access) {
+                let clazz = this.currentScope.getClass(expression.expression.name);
+                if (!clazz) {
+                    clazz = this.currentScope.getEnum(expression.expression.name);
+                    if (!clazz) {
+                        return this.methodsFor(expression);
+                    }
+                }
+                const m = clazz.staticMethods.find((m) => m.name === expression.name && m.parameters.length === expression.args.length);
+                return m?.returns ?? [];
+            }
+            return this.methodsFor(expression);
+        }
+
+        if (expression instanceof NewCall) {
+            return [expression.name.id];
+        }
+        if (expression instanceof FunctionAccess) {
+            return ["Function"];
+        }
+
+        if (expression instanceof Assignable) {
+            return this.guessType(expression.assignee);
+        }
+
+        return [];
+    }
+
+    private methodsFor(expression: MemberCall) {
+        const types = this.guessType(expression.expression);
+        const possible: string[] = [];
+        for (const type of types) {
+            let clazz = this.currentScope.getClass(type);
+            if (!clazz) {
+                clazz = this.currentScope.getEnum(type);
+                if (!clazz) {
+                    const inter = this.currentScope.getInterface(type);
+                    if (!inter) {
+                        continue;
+                    }
+                    const m = inter.methods.find((m) => m.name === expression.name && m.parameters.length === expression.args.length);
+                    if (m?.returns) {
+                        possible.push(...m.returns);
+                    }
+                    continue;
+                }
+            }
+            const m = this.findMethod(clazz, expression.name, expression.args.length);
+            if (m?.returns) {
+                possible.push(...m.returns);
+            }
+        }
+        return possible;
+    }
+
+    private findMethod(clazz: ClassData, name: string, params: number): FunctionData | undefined {
+        const m = clazz.methods.find((m) => m.name === name && m.parameters.length === params);
+        if (m) {
+            return m;
+        }
+        if (clazz.name !== "Object") {
+            for (const zuper of clazz.superclasses) {
+                const clazz = this.currentScope.getClass(zuper);
+                if (clazz) {
+                    const method = this.findMethod(clazz, name, params);
+                    if (method) {
+                        return method;
+                    }
+                }
+            }
+        }
+    }
+
+    private fieldsFor(expression: MemberAccess) {
+        const types = this.guessType(expression.expression);
+        const possible: string[] = [];
+        for (const type of types) {
+            let clazz = this.currentScope.getClass(type);
+            if (!clazz) {
+                clazz = this.currentScope.getEnum(type);
+                if (!clazz) {
+                    continue;
+                }
+            }
+            const f = this.findField(clazz, expression.name);
+            if (f?.types) {
+                possible.push(...f.types);
+            }
+        }
+        return possible;
+    }
+
+    private findField(clazz: ClassData, name: string): VariableData | undefined {
+        const f = clazz.fields.find((f) => f.name === name);
+        if (f) {
+            return f;
+        }
+        if (clazz.name !== "Object") {
+            for (const zuper of clazz.superclasses) {
+                const clazz = this.currentScope.getClass(zuper);
+                if (clazz) {
+                    const field = this.findField(clazz, name);
+                    if (field) {
+                        return field;
+                    }
+                }
+            }
         }
     }
 }

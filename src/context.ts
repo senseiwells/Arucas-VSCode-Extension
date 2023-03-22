@@ -62,6 +62,10 @@ export class ContextScope {
     }
 
     addRawVariable(name: string, ...types: Type[]) {
+        this.addRawSVariable(name, types.map((t) => t.name))
+    }
+
+    addRawSVariable(name: string, types: string[]) {
         if (types.length === 0) {
             const parentTypes = this.getVariableType(name)
             if (!parentTypes) {
@@ -74,21 +78,25 @@ export class ContextScope {
             this.variables.set(name, {
                 name: name,
                 isPrivate: false,
-                types: types.map((t) => t.name)
+                types: types
             })
         }
     }
 
-    addFunction(func: FunctionStmt) {
-        const functions = this.functions.get(func.name.id) ?? [];
-        functions.push({
+    addFunctionStmt(func: FunctionStmt) {
+        this.addFunction({
             name: func.name.id,
             parameters: func.parameters.map((p) => ({ name: p.name, types: p.types.map((t) => t.name) })),
             returns: func.returns.map((t) => t.name),
             isPrivate: false,
             varargs: func.arbitrary
         });
-        this.functions.set(func.name.id, functions);
+    }
+
+    addFunction(func: FunctionData) {
+        const functions = this.functions.get(func.name) ?? [];
+        functions.push(func);
+        this.functions.set(func.name, functions);
     }
 
     addClass(data: ClassData) {
@@ -312,7 +320,7 @@ export class ContextScope {
         return clazz;
     }
 
-    private getVariableType(name: string): string[] | undefined {
+    getVariableType(name: string): string[] | undefined {
         const variable = this.variables.get(name);
         if (variable?.types) {
             return variable.types
