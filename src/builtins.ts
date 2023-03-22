@@ -158,11 +158,12 @@ export class BuiltIns {
         if (func.params) {
             description += "\n\n";
             description += "### Parameters:\n";
-            description += func.params.map((p) => `* \`${p.name}\` - ${p.desc}`).join("\n");
+            description += func.params.map((p) => `* \`${p.name}: ${p.type}\` - ${p.desc}`).join("\n");
         }
         if (func.returns) {
             description += "\n\n";
             description += "### Returns:\n";
+            description += `(\`${func.returns.type}\`) `;
             description += func.returns.desc;
         }
 

@@ -39,6 +39,7 @@ export interface EnumData extends ClassData {
 
 export interface InterfaceData {
     name: string,
+    desc?: string,
     methods: FunctionData[]
 }
 

@@ -14,7 +14,7 @@ import {
     Statement 
 } from "./statements";
 import { Assign, FunctionExpr } from "./expressions";
-import { ClassData, ContextScope, FunctionData } from "./context";
+import { ClassData, ContextScope, EnumData, FunctionData, InterfaceData, VariableData } from "./context";
 import { BaseVisitor, Parameter, ScopeRange, Type } from "./node";
 import { Lexer, Token, TokenType } from "./lexer";
 import { Parser } from "./parser";
@@ -56,43 +56,31 @@ class CompletionVisitor extends BaseVisitor {
         }
     }
 
-    addGenericCompletions(completions: vscode.CompletionItem[]) {
-        BuiltIns.builtInFunctions.forEach((f) => completions.push(this.functionToCompletion(f)));
-        BuiltIns.builtInClasses.forEach((c) => completions.push(this.classToCompletion(c)));
-    }
-
     addScopeCompletions(completions: vscode.CompletionItem[], position: vscode.Position) {
+        BuiltIns.builtInFunctions.forEach((f) => completions.push(this.functionToCompletion(f)));
+
         const scope = this.globalScope.getScopeForPosition(position);
         if (!scope) {
             return;
         }
 
-        scope.getVariables().forEach((v) => {
-            completions.push(
-                new vscode.CompletionItem(v.name, vscode.CompletionItemKind.Variable)
-            );
-        });
-        scope.getFunctions().forEach((f) => {
-            const completion = new vscode.CompletionItem(f.name, vscode.CompletionItemKind.Function);
-            completion.documentation = new vscode.MarkdownString(this.formatFunction(f));
-            completion.insertText = this.snippetFunction(f);
-            completions.push(completion);
-        });
-        scope.getClasses().forEach((c) => {
-            completions.push(
-                new vscode.CompletionItem(c.name, vscode.CompletionItemKind.Class)
-            );
-        });
+        scope.getVariables().forEach(
+            (v) => completions.push(this.variableToCompletion(v))
+        );
+        scope.getFunctions().forEach(
+            (f) => completions.push(this.functionToCompletion(f))
+        );
+        scope.getClasses().forEach(
+            (c) => completions.push(this.classToCompletion(c))
+        );
         scope.getInterfaces().forEach((i) => {
             completions.push(
                 new vscode.CompletionItem(i.name, vscode.CompletionItemKind.Interface)
             );
         });
-        scope.getEnums().forEach((e) => {
-            completions.push(
-                new vscode.CompletionItem(e.name, vscode.CompletionItemKind.Enum)
-            );
-        });
+        scope.getEnums().forEach(
+            (c) => completions.push(this.classToCompletion(c))
+        );
         return;
     }
 
@@ -106,7 +94,6 @@ class CompletionVisitor extends BaseVisitor {
 
         const first = chain.pop();
         if (!first) {
-            this.addGenericCompletions(completions);
             this.addScopeCompletions(completions, position);
             return;
         }
@@ -120,7 +107,14 @@ class CompletionVisitor extends BaseVisitor {
             const clazz = either;
             const next = chain.pop();
             if (!next) {
-                // Completions for class
+                clazz.staticMethods.forEach((m) => completions.push(this.functionToCompletion(m, `<${clazz.name}>`)));
+                clazz.staticFields.forEach((f) => completions.push(this.fieldToCompletion(`<${clazz.name}>`, f)));
+                completions.push(
+                    new vscode.CompletionItem(
+                        "type",
+                        vscode.CompletionItemKind.Field
+                    )
+                );
                 return;
             }
             types = next.static(clazz, scope);
@@ -133,35 +127,50 @@ class CompletionVisitor extends BaseVisitor {
         }
 
         types.forEach((t) => {
-            // TODO:
-            t.methods.forEach((m) => completions.push(this.functionToCompletion(m)));
+            t.fields.forEach((f) => completions.push(this.fieldToCompletion(t.name, f)));
+            t.methods.forEach((m) => completions.push(this.functionToCompletion(m, t.name)));
         });
+    }
+
+    private fieldToCompletion(className: string, variable: VariableData): vscode.CompletionItem {
+        const completion = new vscode.CompletionItem(variable.name, vscode.CompletionItemKind.Field);
+        completion.documentation = new vscode.MarkdownString(`### \`${className}.${variable.name}\`` + (variable.desc ? "\n\n" + variable.desc : ""));
+        return completion;
+    }
+
+    private variableToCompletion(variable: VariableData): vscode.CompletionItem {
+        const completion = new vscode.CompletionItem(variable.name, vscode.CompletionItemKind.Variable);
+        completion.documentation = new vscode.MarkdownString(`### \`${variable.name}\`` + (variable.desc ? "\n\n" + variable.desc : ""));
+        return completion;
     }
 
     private classToCompletion(clazz: ClassData): vscode.CompletionItem {
         const completion = new vscode.CompletionItem(clazz.name, vscode.CompletionItemKind.Class);
-        completion.documentation = new vscode.MarkdownString(`### ${clazz.name}` + clazz.desc ? "\n\n" + clazz.desc : "");
+        completion.documentation = new vscode.MarkdownString(`### \`${clazz.name}\`` + (clazz.desc ? "\n\n" + clazz.desc : ""));
         return completion;
     }
 
-    private functionToCompletion(func: FunctionData): vscode.CompletionItem {
-        const completion = new vscode.CompletionItem(func.name, vscode.CompletionItemKind.Function);
-        completion.documentation = new vscode.MarkdownString(this.formatFunction(func) + func.desc ? "\n\n" + func.desc : "");
-        completion.insertText = this.snippetFunction(func);
-        return completion
+    private interfaceToCompletion(inter: InterfaceData) {
+        const completion = new vscode.CompletionItem(inter.name, vscode.CompletionItemKind.Interface);
+        completion.documentation = new vscode.MarkdownString(`### \`${inter.name}\`` + (inter.desc ? "\n\n" + inter.desc : ""));
+        return completion;
     }
 
-    private formatFunction(func: FunctionData): string {
+    private functionToCompletion(func: FunctionData, prefix?: string): vscode.CompletionItem {
         const parameters = func.parameters.map((p) => {
             return `${p.name}: ${p.types.join(" | ")}`;
         }).join(", ");
-        return `### \`${func.name}(${parameters}): ${func ? func.returns.join(" | ") : "Object"}\``
+        const fnName = `### \`${prefix ? prefix + "." : ""}${func.name}(${parameters}): ${func ? func.returns.join(" | ") : "Object"}\``
+        const completion = new vscode.CompletionItem(func.name, prefix ? vscode.CompletionItemKind.Method : vscode.CompletionItemKind.Function);
+        completion.documentation = new vscode.MarkdownString(fnName + (func.desc ? "\n\n" + func.desc : ""));
+        completion.insertText = this.snippetFunction(func);
+        return completion
     }
 
     private snippetFunction(func: FunctionData): vscode.SnippetString {
         const parameters = func.parameters.map((p, i) => `\${${i + 1}:${p.name}}`);
         return new vscode.SnippetString(
-            `${func.name}(${parameters})$0`
+            `${func.name}(${parameters.join(", ")})$0`
         );
     }
 
@@ -455,6 +464,14 @@ class ReverseExpressionFinder {
                         if (hadFirst) {
                             parameters++;
                         }
+                        if (this.iterator.hasNext()) {
+                            const next = this.iterator.next();
+                            if (next.type === TokenType.New) {
+                                this.chain.push(new TypedExpression(sub.content));
+                                return true;
+                            }
+                        }
+
                         this.chain.push(new FunctionExpression(sub.content, parameters));
                         return true;
                     }
@@ -536,9 +553,12 @@ abstract class AbstractExpression {
             if (name === BuiltIns.objClass.name) {
                 continue;
             }
-            const clazz = scope.getClass(name);
+            let clazz = scope.getClass(name);
             if (!clazz) {
-                continue;
+                clazz = scope.getEnum(name);
+                if (!clazz) {
+                    continue;
+                }
             }
             data.set(clazz.name, clazz);
             this.stringsToClassData(clazz.superclasses, scope).forEach((c) => {
@@ -588,11 +608,27 @@ class VariableExpression extends AbstractExpression {
     }
 
     static(clazz: ClassData, scope: ContextScope): ClassData[] {
+        if (this.name === "type") {
+            return this.stringsToClassData(["Type"], scope);
+        }
+        if (this.isEnum(clazz)) {
+            const element = clazz.enums.find((f) => f === this.name);
+            if (element) {
+                return this.stringsToClassData([clazz.name], scope);
+            }
+        }
         const field = clazz.staticFields.find((f) => f.name === this.name);
         if (!field?.types) {
             return [BuiltIns.objClass];
         }
         return this.stringsToClassData(field.types, scope);
+    }
+
+    private isEnum(object: unknown): object is EnumData {
+        if (object && typeof object === "object") {
+            return "enums" in object;
+        }
+        return false;
     }
 }
 
