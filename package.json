@@ -2,7 +2,7 @@
   "name": "arucas",
   "displayName": "Arucas Language Extension",
   "description": "Language Support for Arucas",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "publisher": "Arucas",
   "icon": "assets/icon.png",
   "repository": {
