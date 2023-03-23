@@ -95,7 +95,7 @@ export class CompletionVisitor extends BaseVisitor {
     private readonly globalScope: ContextScope = new ContextScope();
     private currentScope: ContextScope = this.globalScope;
 
-    readonly definedClasses: ClassData[] = [];
+    readonly definedClasses: Array<ClassData | EnumData | InterfaceData> = [];
 
     private currentClass: string | null = null;
 
@@ -338,17 +338,23 @@ export class CompletionVisitor extends BaseVisitor {
         Imports.getImported(imported).forEach((c) => {
             if (isEnum(c)) {
                 this.currentScope.addEnum(c);
-            } else {
+            } else if (isClass(c)) {
                 this.currentScope.addClass(c);
+            } else {
+                this.currentScope.addInterface(c);
             }
         });
     }
 
     visitInterface(interfaced: Interface): void {
-        this.currentScope.addInterface({
+        const data = {
             name: interfaced.name.id,
             methods: [],
-        });
+        };
+        this.currentScope.addInterface(data);
+        if (this.currentScope === this.globalScope) {
+            this.definedClasses.push(data);
+        }
         for (const method of interfaced.required) {
             this.currentScope.addInterfaceMethod(interfaced.name.id, method);
         }
@@ -931,6 +937,13 @@ class TypedExpression extends AbstractExpression {
 function isEnum(object: unknown): object is EnumData {
     if (object && typeof object === "object") {
         return "enums" in object;
+    }
+    return false;
+}
+
+function isClass(object: unknown): object is ClassData {
+    if (object && typeof object === "object") {
+        return "fields" in object;
     }
     return false;
 }

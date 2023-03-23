@@ -2,7 +2,7 @@ import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 import * as fs from "fs";
-import { ClassData } from "./context";
+import { ClassData, EnumData, InterfaceData } from "./context";
 import { Import } from "./statements";
 import { BuiltIns } from "./builtins";
 import { CompletionVisitor } from "./completions";
@@ -21,7 +21,7 @@ export class Imports {
         return files;
     }
 
-    static getImported(imported: Import): ClassData[] {
+    static getImported(imported: Import): Array<ClassData | EnumData | InterfaceData> {
         const all = imported.imports.length === 1 && imported.imports[0].name === "*";
         const wanted = imported.imports.map((i) => i.name);
         const importables = BuiltIns.importableClasses.get(imported.from.path.id);
@@ -44,6 +44,7 @@ export class Imports {
         const tokens = new Lexer(content).createTokens();
         const completions = new CompletionVisitor(new Parser(tokens).parse());
         if (all) {
+
             return completions.definedClasses;
         }
         return completions.definedClasses.filter((i) => wanted.includes(i.name));

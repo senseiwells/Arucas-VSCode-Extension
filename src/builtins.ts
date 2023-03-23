@@ -1,6 +1,6 @@
 import axios from "axios";
 import * as vscode from "vscode";
-import { ClassData, FunctionData } from "./context";
+import { ClassData, EnumData, FunctionData, InterfaceData } from "./context";
 
 interface ParameterDoc {
     name: string,
@@ -56,7 +56,7 @@ interface RootDoc {
 export class BuiltIns {
     static builtInFunctions: FunctionData[];
     static builtInClasses: ClassData[];
-    static importableClasses: Map<string, ClassData[]>;
+    static importableClasses: Map<string, Array<ClassData | EnumData | InterfaceData>>;
     static objClass: ClassData;
 
     static {
@@ -124,7 +124,7 @@ export class BuiltIns {
     }
 
     private static parseClass(name: string, clazz: ClassDoc) {
-        let classes: ClassData[];
+        let classes: Array<ClassData | EnumData | InterfaceData>;
         if (clazz.import_path) {
             const importable = this.importableClasses.get(clazz.import_path);
             if (importable) {
