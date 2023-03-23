@@ -22,6 +22,9 @@ export class Resolver extends BaseVisitor {
             });
             return;
         }
+        if (imported.imports.length === 1 && imported.imports[0].name === "*") {
+            return;
+        }
         const classes = Imports.getAvailableClasses(imported.from.path.id).map((c) => c.name);
         imported.imports.forEach((i) => {
             if (!classes.includes(i.name)) {

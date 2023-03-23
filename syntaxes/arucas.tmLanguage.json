@@ -60,7 +60,7 @@
                     "name": "keyword.control.conditional.arucas"
                 },
                 {
-                    "match": "\\b(while|for|foreach|return|break|continue)\\b",
+                    "match": "\\b(while|for|foreach|return|break|continue|case|default)\\b",
                     "name": "keyword.control.arucas"
                 }
             ]
