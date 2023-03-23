@@ -30,7 +30,10 @@ export class ArucasCompletionProvider implements vscode.CompletionItemProvider {
         const parser = new Parser(tokens);
         
         const completions: vscode.CompletionItem[] = [];
-        if (KeywordCompletions.addCompletions(completions, tokens, position)) {
+        if (KeywordCompletions.addImportPath(completions, tokens, position)) {
+            return completions;
+        }
+        if (KeywordCompletions.addImportClasses(completions, tokens, position)) {
             return completions;
         }
 
@@ -47,7 +50,37 @@ export class ArucasCompletionProvider implements vscode.CompletionItemProvider {
 }
 
 export class KeywordCompletions {
-    static addCompletions(completions: vscode.CompletionItem[], tokens: Token[], position: vscode.Position): boolean {
+    static addImportClasses(completions: vscode.CompletionItem[], tokens: Token[], position: vscode.Position): boolean {
+        const forward = new TokenIterator(tokens, position);
+        let id = "";
+        while (forward.hasNext()) {
+            const next = forward.next();
+            if (next.type !== TokenType.Identifier && next.type !== TokenType.Comma) {
+                if (next.type !== TokenType.From) {
+                    return false;
+                }
+                if (!forward.hasNext()) {
+                    return false;
+                }
+                const first = forward.next();
+                if (first.type !== TokenType.Identifier) {
+                    return false ;
+                }
+                id += first.content;
+                while (forward.hasNext() && forward.next().type === TokenType.Dot && forward.hasNext()) {
+                    id += "." + forward.next().content;
+                }
+                break;
+            }
+        }
+        if (id === "") {
+            return false;
+        }
+        this.addImportClassCompletions(id, completions);
+        return true;
+    }
+
+    static addImportPath(completions: vscode.CompletionItem[], tokens: Token[], position: vscode.Position): boolean {
         const iterator = new ReverseTokenIterator(tokens, position);
         if (iterator.hasNext()) {
             let last = iterator.peek().type;
@@ -78,6 +111,18 @@ export class KeywordCompletions {
             }
         }
         return false;
+    }
+
+    private static addImportClassCompletions(importPath: string, completions: vscode.CompletionItem[]) {
+        Imports.getAvailableClasses(importPath).forEach((i) => {
+            if (isEnum(i)) {
+                completions.push(CompletionVisitor.enumToCompletion(i));
+            } else if (isClass(i)) {
+                completions.push(CompletionVisitor.classToCompletion(i));
+            } else {
+                completions.push(CompletionVisitor.interfaceToCompletion(i));
+            }
+        });
     }
 
     private static addImportCompletions(starts: string, completions: vscode.CompletionItem[]) {
@@ -116,19 +161,19 @@ export class CompletionVisitor extends BaseVisitor {
         const scope = this.globalScope.getScopeForPosition(position) ?? this.globalScope;
 
         scope.getVariables().forEach(
-            (v) => completions.push(this.variableToCompletion(v))
+            (v) => completions.push(CompletionVisitor.variableToCompletion(v))
         );
         scope.getFunctions().forEach(
-            (f) => completions.push(this.functionToCompletion(f))
+            (f) => completions.push(CompletionVisitor.functionToCompletion(f))
         );
         scope.getClasses().forEach(
-            (c) => completions.push(this.classToCompletion(c))
+            (c) => completions.push(CompletionVisitor.classToCompletion(c))
         );
         scope.getInterfaces().forEach(
-            (i) => completions.push(this.interfaceToCompletion(i))
+            (i) => completions.push(CompletionVisitor.interfaceToCompletion(i))
         );
         scope.getEnums().forEach(
-            (c) => completions.push(this.classToCompletion(c))
+            (c) => completions.push(CompletionVisitor.classToCompletion(c))
         );
         return;
     }
@@ -156,8 +201,8 @@ export class CompletionVisitor extends BaseVisitor {
             const clazz = either;
             const next = chain.pop();
             if (!next) {
-                clazz.staticMethods.forEach((m) => completions.push(this.functionToCompletion(m, clazz.name)));
-                clazz.staticFields.forEach((f) => completions.push(this.fieldToCompletion(clazz.name, f)));
+                clazz.staticMethods.forEach((m) => completions.push(CompletionVisitor.functionToCompletion(m, clazz.name)));
+                clazz.staticFields.forEach((f) => completions.push(CompletionVisitor.fieldToCompletion(clazz.name, f)));
                 completions.push(
                     new vscode.CompletionItem(
                         "type",
@@ -181,45 +226,51 @@ export class CompletionVisitor extends BaseVisitor {
             t.fields.forEach((f) => {
                 const id = "%" + f.name;
                 if (!duplicates.has(id)) {
-                    completions.push(this.fieldToCompletion(`<${t.name}>`, f));
+                    completions.push(CompletionVisitor.fieldToCompletion(`<${t.name}>`, f));
                     duplicates.add(id);
                 }
             });
             t.methods.forEach((m) => {
                 const id = "~" + m.name + m.parameters;
                 if (!duplicates.has(id)) {
-                    completions.push(this.functionToCompletion(m, `<${t.name}>`));
+                    completions.push(CompletionVisitor.functionToCompletion(m, `<${t.name}>`));
                     duplicates.add(id);
                 }
             });
         });
     }
 
-    private fieldToCompletion(className: string, variable: VariableData): vscode.CompletionItem {
+    static fieldToCompletion(className: string, variable: VariableData): vscode.CompletionItem {
         const completion = new vscode.CompletionItem(variable.name, vscode.CompletionItemKind.Field);
         completion.documentation = new vscode.MarkdownString(`### \`${className}.${variable.name}\`` + (variable.desc ? "\n\n" + variable.desc : ""));
         return completion;
     }
 
-    private variableToCompletion(variable: VariableData): vscode.CompletionItem {
+    static variableToCompletion(variable: VariableData): vscode.CompletionItem {
         const completion = new vscode.CompletionItem(variable.name, vscode.CompletionItemKind.Variable);
         completion.documentation = new vscode.MarkdownString(`### \`${variable.name}\`` + (variable.desc ? "\n\n" + variable.desc : ""));
         return completion;
     }
 
-    private classToCompletion(clazz: ClassData): vscode.CompletionItem {
+    static classToCompletion(clazz: ClassData): vscode.CompletionItem {
         const completion = new vscode.CompletionItem(clazz.name, vscode.CompletionItemKind.Class);
         completion.documentation = new vscode.MarkdownString(`### \`${clazz.name}\`` + (clazz.desc ? "\n\n" + clazz.desc : ""));
         return completion;
     }
 
-    private interfaceToCompletion(inter: InterfaceData) {
+    static enumToCompletion(clazz: EnumData): vscode.CompletionItem {
+        const completion = new vscode.CompletionItem(clazz.name, vscode.CompletionItemKind.Enum);
+        completion.documentation = new vscode.MarkdownString(`### \`${clazz.name}\`` + (clazz.desc ? "\n\n" + clazz.desc : ""));
+        return completion;
+    }
+
+    static interfaceToCompletion(inter: InterfaceData) {
         const completion = new vscode.CompletionItem(inter.name, vscode.CompletionItemKind.Interface);
         completion.documentation = new vscode.MarkdownString(`### \`${inter.name}\`` + (inter.desc ? "\n\n" + inter.desc : ""));
         return completion;
     }
 
-    private functionToCompletion(func: FunctionData, prefix?: string): vscode.CompletionItem {
+    static functionToCompletion(func: FunctionData, prefix?: string): vscode.CompletionItem {
         const parameters = func.parameters.map((p) => {
             return `${p.name}: ${p.types.join(" | ")}`;
         }).join(", ");
@@ -230,7 +281,7 @@ export class CompletionVisitor extends BaseVisitor {
         return completion
     }
 
-    private snippetFunction(func: FunctionData): vscode.SnippetString {
+    static snippetFunction(func: FunctionData): vscode.SnippetString {
         const parameters = func.parameters.map((p, i) => `\${${i + 1}:${p.name}}`);
         return new vscode.SnippetString(
             `${func.name}(${parameters.join(", ")})$0`
@@ -580,6 +631,38 @@ class ReverseTokenIterator {
                 break;
             }
             this.tokens.push(token);
+        }
+    }
+
+    peek(): Token {
+        return this.tokens[this.tokens.length - 1];
+    }
+
+    hasNext(): boolean {
+        return this.tokens.length !== 0;
+    }
+
+    next(): Token {
+        const token = this.tokens.pop();
+        if (!token) {
+            throw new Error("No more tokens!");
+        }
+        return token;
+    }
+}
+
+class TokenIterator {
+    private readonly tokens: Token[] = [];
+
+    constructor(
+        tokens: Token[],
+        position: vscode.Position,
+    ) {
+        for (const token of tokens) {
+            if (token.trace.range.start.isBefore(position)) {
+                continue;
+            }
+            this.tokens.unshift(token);
         }
     }
 
