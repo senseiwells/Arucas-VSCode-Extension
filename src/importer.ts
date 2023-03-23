@@ -21,19 +21,14 @@ export class Imports {
         return files;
     }
 
-    static getImported(imported: Import): Array<ClassData | EnumData | InterfaceData> {
-        const all = imported.imports.length === 1 && imported.imports[0].name === "*";
-        const wanted = imported.imports.map((i) => i.name);
-        const importables = BuiltIns.importableClasses.get(imported.from.path.id);
+    static getAvailableClasses(library: string): Array<ClassData | EnumData | InterfaceData> {
+        const importables = BuiltIns.importableClasses.get(library);
         if (importables) {
-            if (all) {
-                return importables;
-            }
-            return importables.filter((i) => wanted.includes(i.name))
+            return importables;
         }
 
         const libraries = this.getLibraryPath();
-        const file = libraries + path.sep + imported.from.path.id.replace(".", path.sep) + ".arucas";
+        const file = libraries + path.sep + library.replace(".", path.sep) + ".arucas";
         let content: string;
         try {
             content = fs.readFileSync(file, "utf-8");
@@ -42,12 +37,18 @@ export class Imports {
         }
 
         const tokens = new Lexer(content).createTokens();
-        const completions = new CompletionVisitor(new Parser(tokens).parse());
-        if (all) {
+        return new CompletionVisitor(new Parser(tokens).parse()).definedClasses;
+    }
 
-            return completions.definedClasses;
+    static getImported(imported: Import): Array<ClassData | EnumData | InterfaceData> {
+        const all = imported.imports.length === 1 && imported.imports[0].name === "*";
+        const wanted = imported.imports.map((i) => i.name);
+
+        const completions = this.getAvailableClasses(imported.from.path.id);
+        if (all) {
+            return completions;
         }
-        return completions.definedClasses.filter((i) => wanted.includes(i.name));
+        return completions.filter((i) => wanted.includes(i.name));
     }
 
     static getLibraryPath(): string {

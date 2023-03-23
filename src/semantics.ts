@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { Lexer } from "./lexer";
 import { Node } from "./node";
 import { Parser, SemanticTokenModifier, SemanticTokenType } from "./parser";
+import { Resolver } from "./resolver";
 
 const TOKEN_TYPES = new Map<string, number>();
 const TOKEN_MODIFIERS = new Map<string, number>();
@@ -103,14 +104,14 @@ export function updateDiagnostics(context: vscode.ExtensionContext, diagnostics:
 function refreshDiagnostics(document: vscode.TextDocument, diagnostics: vscode.DiagnosticCollection) {
     const tokens = new Lexer(document.getText()).createTokens();
     const parser = new Parser(tokens);
-    parser.parse();
+    const resolver = new Resolver(parser.parse());
     const problems: vscode.Diagnostic[] = [];
-    parser.problems().forEach((problem) => {
+    parser.problems().concat(resolver.problems).forEach((problem) => {
         const start = problem.start;
         const end = problem.end;
         // console.log(`Highlighed problem: ${problem.message}, ${start.lineStart}:${start.columnStart} to ${end.lineEnd}:${end.columnEnd}`)
         const range = new vscode.Range(start.range.start, end.range.end);
-        const diagnostic = new vscode.Diagnostic(range, problem.message);
+        const diagnostic = new vscode.Diagnostic(range, problem.message, problem.severity);
         problems.push(diagnostic);
     });
     diagnostics.set(document.uri, problems);

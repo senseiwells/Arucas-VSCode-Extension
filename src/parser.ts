@@ -1738,13 +1738,11 @@ export class Parser extends TokenReader {
     }
 
     softError(message: string, start: Token = this.peek(), end: Token = start): void {
-        this.errors.push(
-            new Problem(
-                start.trace,
-                end.trace,
-                message 
-            )
-        )
+        this.errors.push({
+            start: start.trace,
+            end: end.trace,
+            message: message 
+        })
     }
 
     errorSkip(error: ParseError) {
@@ -1773,13 +1771,11 @@ export class Parser extends TokenReader {
                 }
             }
         } finally {
-            this.errors.push(
-                new Problem(
-                    error.start.token.trace,
-                    this.peek(-1).trace,
-                    error.message
-                )
-            );
+            this.errors.push({
+                start: error.start.token.trace,
+                end: this.peek(-1).trace,
+                message: error.message
+            });
         }
     }
 

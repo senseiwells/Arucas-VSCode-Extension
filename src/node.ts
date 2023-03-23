@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { Range } from "vscode";
+import { DiagnosticSeverity, Range } from "vscode";
 import { Access, Assign, Binary, Bracket, BracketAccess, BracketAssign, Call, Expression, ExpressionVisitor, FunctionAccess, FunctionExpr, List, Literal, MapExpr, MemberAccess, MemberAssign, MemberCall, NewAccess, NewCall, Super, This, Unary, UnpackAssign } from "./expressions";
 import { Trace } from "./lexer";
 import { SemanticToken } from "./parser";
@@ -151,12 +151,11 @@ export class InterfaceMethod extends Node {
     }
 }
 
-export class Problem {
-    constructor(
-        readonly start: Trace,
-        readonly end: Trace,
-        readonly message: string
-    ) {}
+export interface Problem {
+    readonly start: Trace,
+    readonly end: Trace,
+    readonly message: string,
+    readonly severity?: DiagnosticSeverity 
 }
 
 export class ScopeRange {
