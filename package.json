@@ -5,8 +5,11 @@
   "version": "2.0.8",
   "publisher": "Arucas",
   "icon": "assets/icon.png",
+  "repository": {
+    "url": "https://github.com/senseiwells/Arucas-VSCode-Extension"
+  },
   "engines": {
-    "vscode": "^1.76.0"
+    "vscode": "^1.76.0" 
   },
   "categories": [
     "Programming Languages"
