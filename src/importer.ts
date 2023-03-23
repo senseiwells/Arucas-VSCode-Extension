@@ -10,7 +10,6 @@ import { Lexer } from "./lexer";
 import { Parser } from "./parser";
 import { glob } from "glob";
 
-
 export class Imports {
     static getImportables(): string[] {
         const libraries = this.getLibraryPath().replace("\\", "/");

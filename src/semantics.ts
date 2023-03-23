@@ -102,17 +102,19 @@ export function updateDiagnostics(context: vscode.ExtensionContext, diagnostics:
 }
 
 function refreshDiagnostics(document: vscode.TextDocument, diagnostics: vscode.DiagnosticCollection) {
-    const tokens = new Lexer(document.getText()).createTokens();
-    const parser = new Parser(tokens);
-    const resolver = new Resolver(parser.parse());
-    const problems: vscode.Diagnostic[] = [];
-    parser.problems().concat(resolver.problems).forEach((problem) => {
-        const start = problem.start;
-        const end = problem.end;
-        // console.log(`Highlighed problem: ${problem.message}, ${start.lineStart}:${start.columnStart} to ${end.lineEnd}:${end.columnEnd}`)
-        const range = new vscode.Range(start.range.start, end.range.end);
-        const diagnostic = new vscode.Diagnostic(range, problem.message, problem.severity);
-        problems.push(diagnostic);
-    });
-    diagnostics.set(document.uri, problems);
+    if (document.languageId === "arucas") {
+        const tokens = new Lexer(document.getText()).createTokens();
+        const parser = new Parser(tokens);
+        const resolver = new Resolver(parser.parse());
+        const problems: vscode.Diagnostic[] = [];
+        parser.problems().concat(resolver.problems).forEach((problem) => {
+            const start = problem.start;
+            const end = problem.end;
+            // console.log(`Highlighed problem: ${problem.message}, ${start.lineStart}:${start.columnStart} to ${end.lineEnd}:${end.columnEnd}`)
+            const range = new vscode.Range(start.range.start, end.range.end);
+            const diagnostic = new vscode.Diagnostic(range, problem.message, problem.severity);
+            problems.push(diagnostic);
+        });
+        diagnostics.set(document.uri, problems);
+    }
 }
