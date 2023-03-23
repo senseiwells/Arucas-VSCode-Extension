@@ -12,10 +12,10 @@ import { glob } from "glob";
 
 export class Imports {
     static getImportables(): string[] {
-        const libraries = this.getLibraryPath().replace("\\", "/");
+        const libraries = this.getLibraryPath().replaceAll("\\", "/");
         const files = glob.sync(libraries + "/**/*.arucas", {
             absolute: false,
-        }).map((v) => v.substring(libraries.length + 1, v.length - 7).replace("/", "."));
+        }).map((v) => v.substring(libraries.length + 1, v.length - 7).replaceAll("/", "."));
         files.push(...BuiltIns.importableClasses.keys());
         return files;
     }
@@ -27,7 +27,7 @@ export class Imports {
         }
 
         const libraries = this.getLibraryPath();
-        const file = libraries + path.sep + library.replace(".", path.sep) + ".arucas";
+        const file = libraries + path.sep + library.replaceAll(".", path.sep) + ".arucas";
         let content: string;
         try {
             content = fs.readFileSync(file, "utf-8");
