@@ -39,7 +39,7 @@ class SymbolVisitor extends BaseVisitor {
                 klass.name.token.token.trace.range
             ),
             () => super.visitClass(klass)
-        )
+        );
     }
 
     visitEnum(enumeration: Enum): void {
@@ -68,7 +68,7 @@ class SymbolVisitor extends BaseVisitor {
                 });
                 super.visitEnum(enumeration)
             }
-        )
+        );
     }
 
     visitClassBody(klass: ClassBody): void {
